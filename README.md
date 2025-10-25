@@ -51,10 +51,10 @@ When you set up the webhook in Meta, use the `VERIFY_TOKEN` you configured. Meta
 
 ## Notes & next steps
 - Built-in commands now:
-	- `hi` or `hello` — greeting
-	- `help` — list options
-	- `menu` — simple menu
-	- `echo <text>` — bot repeats your text
+  - `hi` or `hello` — greeting
+  - `help` — list options
+  - `menu` — simple menu
+  - `echo <text>` — bot repeats your text
 - Health check: `GET /healthz` returns `{"status":"ok"}`.
 - Optional request verification: set `APP_SECRET` to enable `X-Hub-Signature-256` verification.
 - For production, rotate tokens regularly and restrict access.
