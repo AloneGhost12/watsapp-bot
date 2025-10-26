@@ -1,0 +1,73 @@
+{
+  "Apple": {
+    "iPhone 11": {
+      "Screen": 9000,
+      "Battery": 3500,
+      "Charging Port": 2500,
+      "Back Glass": 4000,
+      "Camera": 4500
+    },
+    "iPhone 12": {
+      "Screen": 12000,
+      "Battery": 4000,
+      "Charging Port": 3000,
+      "Back Glass": 5000,
+      "Camera": 5200
+    },
+    "iPhone XR": {
+      "Screen": 8000,
+      "Battery": 3200,
+      "Charging Port": 2400,
+      "Back Glass": 3800,
+      "Camera": 4200
+    }
+  },
+  "Samsung": {
+    "Galaxy S20": {
+      "Screen": 11000,
+      "Battery": 3800,
+      "Charging Port": 2800,
+      "Back Glass": 4200,
+      "Camera": 4800
+    },
+    "Galaxy A52": {
+      "Screen": 7000,
+      "Battery": 2800,
+      "Charging Port": 2200,
+      "Back Glass": 3000,
+      "Camera": 3500
+    }
+  },
+  "Xiaomi": {
+    "Redmi Note 10": {
+      "Screen": 4500,
+      "Battery": 1800,
+      "Charging Port": 1500,
+      "Back Glass": 2000,
+      "Camera": 2200
+    },
+    "Mi 11": {
+      "Screen": 8000,
+      "Battery": 3000,
+      "Charging Port": 2200,
+      "Back Glass": 3200,
+      "Camera": 3600
+    }
+  },
+  "OnePlus": {
+    "OnePlus 8": {
+      "Screen": 9000,
+      "Battery": 3200,
+      "Charging Port": 2500,
+      "Back Glass": 3500,
+      "Camera": 4000
+    },
+    "OnePlus Nord": {
+      "Screen": 6500,
+      "Battery": 2500,
+      "Charging Port": 2000,
+      "Back Glass": 2800,
+      "Camera": 3000
+    }
+  }
+}
