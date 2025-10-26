@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import mongoose from "mongoose";
 import cors from "cors";
+import PDFDocument from "pdfkit";
 
 // Environment variables (declare early so middleware can use them)
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -82,6 +83,116 @@ ensureDataFiles();
 let REPAIRS = readJSON(REPAIRS_FILE, {});
 function reloadRepairs() {
   REPAIRS = readJSON(REPAIRS_FILE, REPAIRS || {});
+}
+
+// --- PDF Generation for Job Sheet ---------------------------------------------
+async function generateJobSheetPDF(appointment) {
+  return new Promise((resolve, reject) => {
+    try {
+      const pdfDir = path.join(DATA_DIR, 'job_sheets');
+      if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+      
+      const pdfPath = path.join(pdfDir, `job_sheet_${appointment.id}.pdf`);
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const stream = fs.createWriteStream(pdfPath);
+      
+      doc.pipe(stream);
+      
+      // Header
+      doc.fontSize(24).font('Helvetica-Bold').text('JOB SHEET', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(10).font('Helvetica').text('Electronics Repair Center', { align: 'center' });
+      doc.text('Phone: 8589838547', { align: 'center' });
+      doc.moveDown(1);
+      
+      // Job ID and Date
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text(`Job ID: ${appointment.id}`, 50, doc.y);
+      doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 400, doc.y - 12, { width: 150 });
+      doc.moveDown(1);
+      
+      // Customer Information Box
+      const customerBoxTop = doc.y;
+      doc.fontSize(12).font('Helvetica-Bold').text('CUSTOMER INFORMATION', 50, customerBoxTop);
+      doc.moveDown(0.5);
+      
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Name: ${appointment.name || 'N/A'}`, 50, doc.y);
+      doc.text(`Phone: ${appointment.customerWhatsApp || 'N/A'}`, 50, doc.y + 5);
+      doc.text(`Appointment: ${appointment.date || 'N/A'} at ${appointment.time || 'N/A'}`, 50, doc.y + 5);
+      doc.moveDown(1.5);
+      
+      // Device Information Box
+      const deviceBoxTop = doc.y;
+      doc.fontSize(12).font('Helvetica-Bold').text('DEVICE INFORMATION', 50, deviceBoxTop);
+      doc.moveDown(0.5);
+      
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Brand: ${appointment.brand || 'N/A'}`, 50, doc.y);
+      doc.text(`Model: ${appointment.model || 'N/A'}`, 50, doc.y + 5);
+      doc.text(`Issue: ${appointment.issue || 'N/A'}`, 50, doc.y + 5);
+      doc.moveDown(1.5);
+      
+      // Estimate Box
+      const estimateBoxTop = doc.y;
+      doc.fontSize(12).font('Helvetica-Bold').text('COST ESTIMATE', 50, estimateBoxTop);
+      doc.moveDown(0.5);
+      
+      doc.fontSize(10).font('Helvetica');
+      const estimateText = appointment.estimate 
+        ? `₹${appointment.estimate.toLocaleString('en-IN')}`
+        : (appointment.estimateRange || 'To be determined after diagnosis');
+      doc.text(`Estimated Cost: ${estimateText}`, 50, doc.y);
+      doc.fontSize(8).font('Helvetica-Oblique');
+      doc.text('Note: Final cost may vary based on actual diagnosis and parts required.', 50, doc.y + 5);
+      doc.moveDown(2);
+      
+      // Terms and Conditions
+      doc.fontSize(10).font('Helvetica-Bold').text('TERMS & CONDITIONS', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fontSize(8).font('Helvetica');
+      const terms = [
+        '1. A diagnostic fee may apply if repair is not completed.',
+        '2. All repairs come with a 30-day warranty on parts and labor.',
+        '3. Customer data backup is customer\'s responsibility.',
+        '4. Devices left unclaimed for 30+ days may be disposed of.',
+        '5. Payment is due upon completion of repair.'
+      ];
+      terms.forEach(term => {
+        doc.text(term, 50, doc.y);
+        doc.moveDown(0.3);
+      });
+      
+      doc.moveDown(2);
+      
+      // Signature Section
+      const signatureY = doc.y + 20;
+      doc.fontSize(10).font('Helvetica');
+      doc.text('_______________________', 50, signatureY);
+      doc.text('Customer Signature', 50, signatureY + 15);
+      
+      doc.text('_______________________', 350, signatureY);
+      doc.text('Technician Signature', 350, signatureY + 15);
+      
+      // Footer
+      doc.fontSize(8).font('Helvetica-Oblique');
+      doc.text('Thank you for choosing our service!', 50, doc.page.height - 50, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
+      
+      doc.end();
+      
+      stream.on('finish', () => {
+        console.log('PDF generated successfully:', pdfPath);
+        resolve(pdfPath);
+      });
+      
+      stream.on('error', reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 // --- MongoDB setup ----------------------------------------------------------
@@ -272,6 +383,55 @@ async function sendList(to, bodyText, buttonText, sections) {
       fallback += "\n";
     });
     await sendTextMessage(to, fallback);
+  }
+}
+
+// Send PDF document via WhatsApp
+async function sendDocument(to, pdfPath, caption) {
+  if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
+    throw new Error("Missing WhatsApp credentials");
+  }
+  
+  try {
+    // Step 1: Upload the PDF to WhatsApp servers
+    const formData = new (await import('form-data')).default();
+    formData.append('file', fs.createReadStream(pdfPath));
+    formData.append('messaging_product', 'whatsapp');
+    
+    const uploadUrl = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/media`;
+    const uploadResponse = await axios.post(uploadUrl, formData, {
+      headers: {
+        ...formData.getHeaders(),
+        'Authorization': `Bearer ${ACCESS_TOKEN}`
+      }
+    });
+    
+    const mediaId = uploadResponse.data.id;
+    console.log('PDF uploaded to WhatsApp, media ID:', mediaId);
+    
+    // Step 2: Send the document message
+    const messageUrl = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+    await axios.post(
+      messageUrl,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "document",
+        document: {
+          id: mediaId,
+          caption: caption || "Job Sheet",
+          filename: path.basename(pdfPath)
+        }
+      },
+      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+    );
+    
+    console.log('Document sent successfully to', to);
+    await saveOutgoing(to, `[Sent PDF: ${caption || path.basename(pdfPath)}]`);
+  } catch (err) {
+    console.error('Error sending document:', err.response?.data || err.message);
+    logGraphError(err, "sendDocument");
+    throw err;
   }
 }
 
@@ -1923,3 +2083,5 @@ app.listen(PORT, () => {
     console.warn("(Optional) APP_SECRET not set — request signature verification is disabled.");
   }
 });
+
+
