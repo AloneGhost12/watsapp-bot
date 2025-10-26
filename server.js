@@ -289,7 +289,7 @@ Always suggest typing 'estimate' or 'book' when customers want specific services
       : `${systemContext}\n\nCustomer: ${userMessage}\n\nAssistant:`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{
           parts: [{ text: prompt }]
