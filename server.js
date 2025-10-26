@@ -190,28 +190,102 @@ async function sendTextMessage(to, body) {
   }
 }
 
+// Send interactive buttons (max 3 buttons)
+async function sendButtons(to, bodyText, buttons) {
+  if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
+    throw new Error("Missing WhatsApp credentials");
+  }
+  const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+  try {
+    await axios.post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: bodyText },
+          action: {
+            buttons: buttons.map((btn, i) => ({
+              type: "reply",
+              reply: {
+                id: btn.id || `btn_${i}`,
+                title: btn.title.substring(0, 20) // Max 20 chars
+              }
+            }))
+          }
+        }
+      },
+      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+    );
+    await saveOutgoing(to, bodyText);
+  } catch (err) {
+    logGraphError(err, "sendButtons");
+    // Fallback to text if buttons fail
+    const fallback = bodyText + "\n\n" + buttons.map((b, i) => `${i + 1}. ${b.title}`).join("\n");
+    await sendTextMessage(to, fallback);
+  }
+}
+
+// Send interactive list (up to 10 items per section)
+async function sendList(to, bodyText, buttonText, sections) {
+  if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
+    throw new Error("Missing WhatsApp credentials");
+  }
+  const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+  try {
+    await axios.post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: { text: bodyText },
+          action: {
+            button: buttonText.substring(0, 20),
+            sections: sections.map(section => ({
+              title: section.title,
+              rows: section.rows.map(row => ({
+                id: row.id,
+                title: row.title.substring(0, 24), // Max 24 chars
+                description: row.description?.substring(0, 72) // Max 72 chars
+              }))
+            }))
+          }
+        }
+      },
+      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+    );
+    await saveOutgoing(to, bodyText);
+  } catch (err) {
+    logGraphError(err, "sendList");
+    // Fallback to text if list fails
+    let fallback = bodyText + "\n\n";
+    sections.forEach(sec => {
+      fallback += `*${sec.title}*\n`;
+      sec.rows.forEach((row, i) => {
+        fallback += `${i + 1}. ${row.title}\n`;
+      });
+      fallback += "\n";
+    });
+    await sendTextMessage(to, fallback);
+  }
+}
+
 // Optional: send a quick reply menu as plain text list
 async function sendMenu(to) {
-  const lines = [
-    "📋 *Main Menu* - Choose what you need:",
-    "",
-    "1️⃣ *Get Estimate* 💰",
-    "   Get instant repair pricing",
-    "",
-    "2️⃣ *Book Appointment* 📅",
-    "   Schedule your repair visit",
-    "",
-    "3️⃣ *Help & Support* 🆘",
-    "   Learn how to use this bot",
-    "",
-    "💬 *Quick Commands:*",
-    "Type: *estimate* or *book*",
-    "Cancel anytime: *cancel*",
-    "",
-    "✨ Or just ask me anything naturally!",
-    "Example: \"iPhone 13 screen price?\"",
-  ];
-  await sendTextMessage(to, lines.join("\n"));
+  await sendButtons(
+    to,
+    "📋 *Main Menu* - Choose what you need:\n\n💰 Get repair pricing instantly\n📅 Schedule your repair visit\n🆘 Learn how to use this bot\n\n✨ Or just ask me anything naturally!",
+    [
+      { id: "estimate", title: "💰 Get Estimate" },
+      { id: "book", title: "📅 Book Appointment" },
+      { id: "help", title: "🆘 Help" }
+    ]
+  );
 }
 
 app.get("/healthz", (_req, res) => {
