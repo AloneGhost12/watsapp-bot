@@ -657,6 +657,191 @@
     .status-completed{ background:rgba(16,185,129,0.2); color:var(--success); }
     .status-cancelled{ background:rgba(239,68,68,0.2); color:var(--danger); }
     
+    /* Status button animations */
+    .status-action-btn {
+      transition: all 0.3s ease;
+      opacity: 1;
+    }
+    
+    .status-action-btn.fade-out {
+      opacity: 0;
+      transform: scale(0.8);
+      pointer-events: none;
+    }
+    
+    .status-action-btn.selected {
+      animation: pulseSuccess 0.6s ease;
+    }
+    
+    @keyframes pulseSuccess {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(16,185,129,0.5); }
+    }
+    
+    /* Confirmation Modal */
+    .confirm-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .confirm-modal-content {
+      background: var(--panel);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+      width: 90%;
+      max-width: 480px;
+      animation: modalSlideUp 0.4s ease;
+      overflow: hidden;
+    }
+    
+    @keyframes modalSlideUp {
+      from { transform: translateY(50px) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    
+    .confirm-modal-header {
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05));
+    }
+    
+    .confirm-modal-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      display: block;
+      text-align: center;
+      animation: bounce 0.6s ease;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .confirm-modal-title {
+      margin: 0;
+      color: var(--text);
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-modal-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      text-align: center;
+      margin: 0;
+    }
+    
+    .confirm-modal-body {
+      padding: 28px;
+    }
+    
+    .confirm-details {
+      background: var(--panel2);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .confirm-detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    
+    .confirm-detail-row:last-child {
+      border-bottom: none;
+    }
+    
+    .confirm-detail-label {
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    
+    .confirm-detail-value {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .confirm-modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .confirm-modal-btn {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    
+    .confirm-modal-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .confirm-modal-btn:active {
+      transform: translateY(0);
+    }
+    
+    .confirm-btn-cancel {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    
+    .confirm-btn-cancel:hover {
+      background: var(--panel);
+      border-color: var(--muted);
+    }
+    
+    .confirm-btn-confirm {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+    
+    .confirm-btn-confirm:hover {
+      box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+    }
+    
+    .confirm-btn-confirm.danger {
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+      box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+    }
+    
+    .confirm-btn-confirm.danger:hover {
+      box-shadow: 0 6px 20px rgba(239,68,68,0.5);
+    }
+    
+    .confirm-btn-confirm.success {
+      background: linear-gradient(135deg, var(--success), #059669);
+      box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+    }
+    
+    .confirm-btn-confirm.success:hover {
+      box-shadow: 0 6px 20px rgba(16,185,129,0.5);
+    }
+    
     /* Utilities */
     .small{ font-size:12px; color:var(--muted); }
     .success{ color: var(--success); }
@@ -700,6 +885,11 @@
       to{ opacity:1; } 
     }
     
+    @keyframes fadeOut{ 
+      from{ opacity:1; } 
+      to{ opacity:0; } 
+    }
+    
     @keyframes slideDown{ 
       from{ transform: translateY(-100%); opacity:0; } 
       to{ transform: translateY(0); opacity:1; } 
@@ -713,6 +903,11 @@
     @keyframes messageSlide{
       from{ transform: translateY(10px); opacity:0; }
       to{ transform: translateY(0); opacity:1; }
+    }
+    
+    @keyframes slideOutRight{
+      from{ transform: translateX(0); opacity:1; }
+      to{ transform: translateX(400px); opacity:0; }
     }
     
     /* Empty States */
@@ -1818,7 +2013,7 @@ function renderAppointments() {
   }
   
   tbody.innerHTML = '';
-  state.appointments.forEach(a => {
+  appointments.forEach(a => {
     const tr = document.createElement('tr');
     const id = a._id || a.id;
     tr.innerHTML = `
@@ -1842,14 +2037,182 @@ function renderAppointments() {
         <span class="status-badge status-${a.status||'pending'}">${a.status||'pending'}</span>
       </td>
       <td>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-          ${a.status !== 'confirmed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'confirmed'})">✓ Confirm</button>` : ''}
-          ${a.status !== 'completed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'completed'})">✓ Complete</button>` : ''}
-          ${a.status !== 'cancelled' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'cancelled'})">✗ Cancel</button>` : ''}
+        <div style="display:flex; gap:4px; flex-wrap:wrap;" class="action-buttons" data-appt-id="${id}">
+          ${a.status !== 'confirmed' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'confirmed', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✓ Confirm</button>` : ''}
+          ${a.status !== 'completed' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'completed', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✓ Complete</button>` : ''}
+          ${a.status !== 'cancelled' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'cancelled', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✗ Cancel</button>` : ''}
         </div>
       </td>`;
     tbody.appendChild(tr);
   });
+}
+
+// Confirmation modal for status changes
+function confirmStatusChange(id, newStatus, appointmentData) {
+  // Parse appointment data if it's a string
+  const appt = typeof appointmentData === 'string' ? JSON.parse(appointmentData) : appointmentData;
+  
+  // Get status display properties
+  const statusConfig = {
+    'confirmed': {
+      icon: '✓',
+      title: 'Confirm Appointment',
+      subtitle: 'Are you sure you want to confirm this appointment?',
+      btnClass: 'success',
+      btnText: 'Confirm Appointment'
+    },
+    'completed': {
+      icon: '✓',
+      title: 'Complete Appointment',
+      subtitle: 'Mark this appointment as completed?',
+      btnClass: 'success',
+      btnText: 'Mark as Completed'
+    },
+    'cancelled': {
+      icon: '✗',
+      title: 'Cancel Appointment',
+      subtitle: 'Are you sure you want to cancel this appointment?',
+      btnClass: 'danger',
+      btnText: 'Cancel Appointment'
+    }
+  };
+  
+  const config = statusConfig[newStatus] || statusConfig['confirmed'];
+  
+  // Create modal HTML
+  const modalHTML = `
+    <div class="confirm-modal" id="confirmModal">
+      <div class="confirm-modal-content">
+        <div class="confirm-modal-header">
+          <span class="confirm-modal-icon">${config.icon}</span>
+          <h2 class="confirm-modal-title">${config.title}</h2>
+          <p class="confirm-modal-subtitle">${config.subtitle}</p>
+        </div>
+        <div class="confirm-modal-body">
+          <div class="confirm-details">
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Customer:</span>
+              <span class="confirm-detail-value">${escapeHtml(appt.name || 'N/A')}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Contact:</span>
+              <span class="confirm-detail-value">${appt.customerWhatsApp || 'N/A'}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Device:</span>
+              <span class="confirm-detail-value">${appt.brand || ''} ${appt.model || ''}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Issue:</span>
+              <span class="confirm-detail-value">${escapeHtml(appt.issue || 'N/A')}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Date & Time:</span>
+              <span class="confirm-detail-value">${appt.date || 'N/A'} ${appt.time || ''}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Current Status:</span>
+              <span class="confirm-detail-value">${appt.status || 'pending'}</span>
+            </div>
+            <div class="confirm-detail-row">
+              <span class="confirm-detail-label">New Status:</span>
+              <span class="confirm-detail-value" style="color: var(--accent);">${newStatus}</span>
+            </div>
+          </div>
+          <div class="confirm-modal-actions">
+            <button class="confirm-modal-btn confirm-btn-cancel" onclick="closeConfirmModal()">
+              Cancel
+            </button>
+            <button class="confirm-modal-btn confirm-btn-confirm ${config.btnClass}" onclick="executeStatusChange('${id}', '${newStatus}')">
+              ${config.btnText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add modal to page
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer.firstElementChild);
+}
+
+function closeConfirmModal() {
+  const modal = document.getElementById('confirmModal');
+  if (modal) {
+    modal.style.animation = 'fadeOut 0.2s ease';
+    setTimeout(() => modal.remove(), 200);
+  }
+}
+
+async function executeStatusChange(id, newStatus) {
+  // Close modal
+  closeConfirmModal();
+  
+  // Find the action buttons container
+  const actionContainer = document.querySelector(`.action-buttons[data-appt-id="${id}"]`);
+  const buttons = actionContainer ? actionContainer.querySelectorAll('.status-action-btn') : [];
+  
+  // Get the clicked button
+  const clickedButton = Array.from(buttons).find(btn => 
+    btn.textContent.toLowerCase().includes(newStatus.toLowerCase())
+  );
+  
+  // Add selected class to clicked button
+  if (clickedButton) {
+    clickedButton.classList.add('selected');
+  }
+  
+  // Fade out other buttons
+  buttons.forEach(btn => {
+    if (btn !== clickedButton) {
+      btn.classList.add('fade-out');
+    }
+  });
+  
+  // Wait for animation
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Update appointment
+  try {
+    const res = await fetch((base||'') + '/admin/appointments/' + encodeURIComponent(id), { 
+      method:'PATCH', 
+      headers: hdrs(), 
+      body: JSON.stringify({status: newStatus}) 
+    });
+    
+    if(!res.ok){ 
+      showToast('Failed to update appointment', 'error');
+      
+      // Restore buttons on error
+      buttons.forEach(btn => {
+        btn.classList.remove('fade-out', 'selected');
+      });
+      return;
+    }
+    
+    showToast(`Appointment ${newStatus} successfully`, 'success');
+    
+    // Remove all buttons after successful update
+    setTimeout(() => {
+      buttons.forEach(btn => btn.remove());
+    }, 600);
+    
+    // Reload appointments after a short delay
+    setTimeout(() => {
+      loadAppointments();
+    }, 1000);
+    
+  } catch(e) {
+    console.error('Error updating appointment:', e);
+    showToast('Error updating appointment', 'error');
+    
+    // Restore buttons on error
+    buttons.forEach(btn => {
+      btn.classList.remove('fade-out', 'selected');
+    });
+  }
 }
 
 async function updateAppt(id, patch){
@@ -2125,6 +2488,12 @@ function getTimestamp() {
 }
 
 // Utility functions
+async function fetchAPI(endpoint) {
+  const res = await fetch((base||'') + endpoint, { headers: hdrs() });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return await res.json();
+}
+
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
@@ -2362,10 +2731,10 @@ function renderMobileAppointments(appointments) {
         <span class="status-badge status-${a.status||'pending'}">${a.status||'pending'}</span>
       </td>
       <td>
-        <div style="display:flex; gap:4px; flex-wrap:wrap;">
-          ${a.status !== 'confirmed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'confirmed'})">✓ Confirm</button>` : ''}
-          ${a.status !== 'completed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'completed'})">✓ Complete</button>` : ''}
-          ${a.status !== 'cancelled' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'cancelled'})">✗ Cancel</button>` : ''}
+        <div style="display:flex; gap:4px; flex-wrap:wrap;" class="action-buttons" data-appt-id="${id}">
+          ${a.status !== 'confirmed' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'confirmed', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✓ Confirm</button>` : ''}
+          ${a.status !== 'completed' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'completed', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✓ Complete</button>` : ''}
+          ${a.status !== 'cancelled' ? `<button class="btn secondary status-action-btn" style="font-size:11px; padding:6px 10px;" onclick="confirmStatusChange('${id}', 'cancelled', ${JSON.stringify(a).replace(/'/g, "&apos;")})">✗ Cancel</button>` : ''}
         </div>
       </td>`;
     tbody.appendChild(tr);
