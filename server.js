@@ -17,6 +17,7 @@ const MONGO_URI = process.env.MONGO_URI;
 const USE_MEMORY_DB = (process.env.USE_MEMORY_DB || "").toLowerCase() === "true";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const ADMIN_ORIGIN = process.env.ADMIN_ORIGIN; // optional CORS origin for admin UI
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PORT = process.env.PORT || 10000;
 let memServer = null; // holds in-memory Mongo instance for dev
 const DEV_FAKE_SEND = (process.env.DEV_FAKE_SEND || "").toLowerCase() === "true"; // allow saving outgoing even if WA send fails
@@ -259,6 +260,76 @@ function logGraphError(error, context) {
   console.error(`${tag}Graph API error:`, JSON.stringify(data, null, 2));
 }
 
+// --- Gemini AI Integration --------------------------------------------------
+async function askGemini(userMessage, conversationHistory = []) {
+  if (!GEMINI_API_KEY) {
+    console.warn("GEMINI_API_KEY not configured - AI responses disabled");
+    return null;
+  }
+  
+  try {
+    const systemContext = `You are a helpful assistant for a phone repair shop. 
+We repair phones from multiple brands. Use the listBrands() function to see available brands.
+You can help customers with:
+- Getting repair estimates (guide them to type 'estimate')
+- Booking appointments (guide them to type 'book')
+- General questions about repairs, pricing, and services
+- Device troubleshooting tips
+
+Keep responses short (2-3 sentences), friendly, and helpful.
+Always suggest typing 'estimate' or 'book' when customers want specific services.`;
+
+    // Build conversation context
+    let contextMessages = conversationHistory.map(msg => 
+      `${msg.direction === 'in' ? 'Customer' : 'Assistant'}: ${msg.text}`
+    ).join('\n');
+    
+    const prompt = contextMessages 
+      ? `${systemContext}\n\nConversation history:\n${contextMessages}\n\nCustomer: ${userMessage}\n\nAssistant:`
+      : `${systemContext}\n\nCustomer: ${userMessage}\n\nAssistant:`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 200,
+          topP: 0.8,
+          topK: 40
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    const aiText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return aiText?.trim() || null;
+  } catch (error) {
+    console.error('Gemini AI error:', error.response?.data || error.message);
+    return null;
+  }
+}
+
+async function getConversationHistory(contact, limit = 5) {
+  try {
+    if (mongoReady && Inquiry && dbConnected()) {
+      const messages = await Inquiry.find({ contact })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+      return messages.reverse(); // oldest first
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching conversation history:', error.message);
+    return [];
+  }
+}
+
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
   // Route active sessions first
@@ -331,6 +402,21 @@ async function handleTextCommand(from, text) {
     }
   }
 
+  
+  // AI-powered fallback for unknown queries
+  try {
+    const history = await getConversationHistory(from, 5);
+    const aiResponse = await askGemini(text, history);
+    
+    if (aiResponse) {
+      await sendTextMessage(from, aiResponse);
+      return;
+    }
+  } catch (error) {
+    console.error('AI fallback error:', error.message);
+  }
+
+  // Final fallback if AI fails
   await sendTextMessage(from, "I didn’t catch that. Type 'menu' to see options.");
 }
 
