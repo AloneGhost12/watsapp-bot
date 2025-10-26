@@ -461,6 +461,32 @@ async function getConversationHistory(contact, limit = 5) {
 
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
+  
+  // Allow menu number selections (1, 2, 3) when NO active session
+  if (!hasActiveSession(from)) {
+    if (t === "1") {
+      await startEstimateFlow(from);
+      return;
+    }
+    if (t === "2") {
+      await startBookingFlow(from);
+      return;
+    }
+    if (t === "3") {
+      await sendTextMessage(
+        from,
+        [
+          "I can do these:",
+          "• estimate — get repair cost by brand/model/issue",
+          "• book — book an appointment",
+          "• menu — show options",
+          "• cancel — stop current flow"
+        ].join("\n")
+      );
+      return;
+    }
+  }
+  
   // Route active sessions first
   if (hasActiveSession(from)) {
     await continueSession(from, text);
@@ -495,6 +521,7 @@ async function handleTextCommand(from, text) {
     return;
   }
   if (t === "menu") {
+    endSession(from); // Allow menu to reset stuck sessions
     await sendMenu(from);
     return;
   }
@@ -503,10 +530,12 @@ async function handleTextCommand(from, text) {
     return;
   }
   if (t === "estimate" || t === "get estimate") {
+    endSession(from); // Allow estimate to override session
     await startEstimateFlow(from);
     return;
   }
   if (["book", "appointment", "book appointment"].includes(t)) {
+    endSession(from); // Allow book to override session
     await startBookingFlow(from);
     return;
   }
