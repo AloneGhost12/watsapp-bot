@@ -656,6 +656,8 @@ async function continueSession(from, text) {
   const t = (text || "").trim();
   const tLower = t.toLowerCase();
   
+  console.log(`[Session] ${from} - Flow: ${s.flow}, Step: ${s.step}, Input: "${t.substring(0, 50)}..."`);
+  
   // Check for global override commands FIRST
   if (tLower === "cancel" || tLower === "reset") {
     endSession(from);
@@ -1010,6 +1012,7 @@ async function continueBooking(from, s, input) {
     }
     case "date": {
       let date = input.trim();
+      let confirmMsg = "";
       
       // First check if it's already in correct format
       if (!isValidDate(date)) {
@@ -1017,7 +1020,7 @@ async function continueBooking(from, s, input) {
         const parsedDate = await parseNaturalDate(input);
         if (parsedDate) {
           date = parsedDate;
-          await sendTextMessage(from, `✅ Got it! ${date}`);
+          confirmMsg = `✅ Understood! ${date}\n\n`;
         } else {
           await sendTextMessage(from, "I didn't understand that date. Please try:\n• YYYY-MM-DD (e.g., 2025-10-26)\n• Or say 'tomorrow', 'next week', '7th', etc.");
           return;
@@ -1026,11 +1029,12 @@ async function continueBooking(from, s, input) {
       
       s.data.date = date;
       s.step = "time";
-      await sendTextMessage(from, "What time works for you? 🕐\n(e.g., '5pm', '17:00', 'noon', '3:30 pm')");
+      await sendTextMessage(from, confirmMsg + "What time works for you? 🕐\n(e.g., '5pm', '17:00', 'noon', '3:30 pm')");
       return;
     }
     case "time": {
       let time = input.trim();
+      let confirmMsg = "";
       
       // First check if it's already in correct format
       if (!isValidTime(time)) {
@@ -1038,7 +1042,7 @@ async function continueBooking(from, s, input) {
         const parsedTime = await parseNaturalTime(input);
         if (parsedTime) {
           time = parsedTime;
-          await sendTextMessage(from, `✅ Got it! ${time}`);
+          confirmMsg = `✅ Understood! ${time}\n\n`;
         } else {
           await sendTextMessage(from, "I didn't understand that time. Please try:\n• 24-hour format (e.g., 14:30)\n• Or say '5pm', 'noon', '3:30 pm', etc.");
           return;
@@ -1047,17 +1051,20 @@ async function continueBooking(from, s, input) {
       
       s.data.time = time;
       s.step = "confirm";
+      
+      // Send confirmation in ONE message to avoid session loss
       await sendTextMessage(
         from,
-        [
-          "Confirm your appointment:",
-          `Name: ${s.data.name}`,
-          `Phone (WhatsApp): ${from}`,
-          `Device: ${s.data.brand} ${s.data.model}`,
-          `Issue: ${s.data.issue}`,
-          s.data.price ? `Estimate: ₹${s.data.price.toLocaleString("en-IN")}` : undefined,
-          `Preferred: ${s.data.date} ${s.data.time}`,
-          "Reply 'yes' to confirm or 'no' to cancel.",
+        confirmMsg + [
+          "📋 *Confirm your appointment:*",
+          `👤 Name: ${s.data.name}`,
+          `📱 Phone: ${from}`,
+          `🔧 Device: ${s.data.brand} ${s.data.model}`,
+          `⚠️ Issue: ${s.data.issue}`,
+          s.data.price ? `💰 Estimate: ₹${s.data.price.toLocaleString("en-IN")}` : "💰 Estimate: Will quote during visit",
+          `📅 Date & Time: ${s.data.date} at ${s.data.time}`,
+          "",
+          "Reply *'yes'* to confirm or *'no'* to cancel.",
         ].filter(Boolean).join("\n")
       );
       return;
@@ -1212,6 +1219,7 @@ app.post("/webhook", async (req, res) => {
       const from = message.from;
       const type = message.type;
       console.log("Incoming message", { from, type });
+      console.log(`[Session Check] Has active session: ${hasActiveSession(from)}`);
       // Save inquiry
       await saveInquiry(message);
       if (type === "text") {
