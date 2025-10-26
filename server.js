@@ -6,6 +6,20 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import mongoose from "mongoose";
+import cors from "cors";
+
+// Environment variables (declare early so middleware can use them)
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const APP_SECRET = process.env.APP_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const USE_MEMORY_DB = (process.env.USE_MEMORY_DB || "").toLowerCase() === "true";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const ADMIN_ORIGIN = process.env.ADMIN_ORIGIN; // optional CORS origin for admin UI
+const PORT = process.env.PORT || 10000;
+let memServer = null; // holds in-memory Mongo instance for dev
+const DEV_FAKE_SEND = (process.env.DEV_FAKE_SEND || "").toLowerCase() === "true"; // allow saving outgoing even if WA send fails
 
 const app = express();
 
@@ -17,14 +31,16 @@ app.use(
   })
 );
 
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-const APP_SECRET = process.env.APP_SECRET;
-const MONGO_URI = process.env.MONGO_URI;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-
-const PORT = process.env.PORT || 10000;
+// Enable CORS for admin routes when ADMIN_ORIGIN is provided
+if (ADMIN_ORIGIN) {
+  const corsOptions = {
+    origin: ADMIN_ORIGIN,
+    methods: ["GET", "POST", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-admin-token"],
+  };
+  app.options(["/admin", "/admin/*"], cors(corsOptions));
+  app.use(["/admin", "/admin/*"], cors(corsOptions));
+}
 
 // --- Simple storage helpers -------------------------------------------------
 const DATA_DIR = path.resolve("./data");
@@ -102,6 +118,22 @@ let Appointment;
 let Inquiry;
 (async () => {
   try {
+    if (USE_MEMORY_DB || (MONGO_URI && MONGO_URI.toLowerCase() === "memory")) {
+      // Start an in-memory MongoDB for local development (no external install needed)
+      const { MongoMemoryServer } = await import("mongodb-memory-server");
+      memServer = await MongoMemoryServer.create();
+      const memUri = memServer.getUri();
+      await mongoose.connect(memUri, { dbName: process.env.MONGO_DB || "watsapp_bot" });
+      console.log("Started in-memory MongoDB for dev at", memUri);
+      Appointment = mongoose.models.Appointment || mongoose.model("Appointment", AppointmentSchema);
+      Inquiry = mongoose.models.Inquiry || mongoose.model("Inquiry", InquirySchema);
+      mongoReady = true;
+      // Optional: clean up on process exit
+      const cleanup = async () => { try { await mongoose.disconnect(); if(memServer){ await memServer.stop(); memServer=null; } } catch {} };
+      process.on("SIGINT", cleanup);
+      process.on("SIGTERM", cleanup);
+      return;
+    }
     if (MONGO_URI) {
       await mongoose.connect(MONGO_URI, { dbName: process.env.MONGO_DB || undefined });
       Appointment = mongoose.models.Appointment || mongoose.model("Appointment", AppointmentSchema);
@@ -115,6 +147,27 @@ let Inquiry;
     console.error("MongoDB connection error:", e.message);
   }
 })();
+
+// Track connection state reliably
+function dbConnected() {
+  // 1 = connected, per Mongoose docs
+  return mongoose?.connection?.readyState === 1;
+}
+mongoose.connection.on("connected", () => { mongoReady = true; console.log("Mongo connected"); });
+mongoose.connection.on("disconnected", async () => {
+  mongoReady = false;
+  console.warn("Mongo disconnected");
+  // If using in-memory server, attempt a quick reconnect
+  try {
+    if (memServer) {
+      const uri = memServer.getUri();
+      setTimeout(() => {
+        mongoose.connect(uri, { dbName: process.env.MONGO_DB || "watsapp_bot" }).catch(() => {});
+      }, 500);
+    }
+  } catch {}
+});
+mongoose.connection.on("error", (err) => { mongoReady = false; console.error("Mongo error:", err?.message || err); });
 
 async function sendTextMessage(to, body) {
   if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
@@ -150,6 +203,17 @@ async function sendMenu(to) {
 
 app.get("/healthz", (_req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// Admin health endpoint to verify DB connectivity
+app.get("/admin/health", (req, res) => {
+  res.json({
+    mongoReady,
+    db: mongoose.connection?.name || process.env.MONGO_DB || null,
+    node: process.version,
+    uptime: process.uptime(),
+    ts: new Date().toISOString(),
+  });
 });
 
 app.get("/webhook", (req, res) => {
@@ -682,6 +746,31 @@ async function saveOutgoing(to, body) {
   }
 }
 
+// Dev helper: save an inbound text message (simulates a user message)
+async function saveInboundText(from, body) {
+  try {
+    if (mongoReady && Inquiry && dbConnected()) {
+      await Inquiry.create({
+        contact: from,
+        direction: "in",
+        from,
+        to: PHONE_NUMBER_ID,
+        type: "text",
+        text: body,
+      });
+    } else {
+      const logFile = path.join(DATA_DIR, "inquiries.log");
+      fs.appendFileSync(
+        logFile,
+        JSON.stringify({ ts: new Date().toISOString(), contact: from, direction: "in", from, to: PHONE_NUMBER_ID, type: "text", text: body }) +
+          "\n"
+      );
+    }
+  } catch (e) {
+    console.error("Failed to save inbound (dev):", e.message);
+  }
+}
+
 app.post("/webhook", async (req, res) => {
   if (!isValidSignature(req)) {
     console.warn("Invalid signature on webhook request");
@@ -729,10 +818,87 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Send WhatsApp notification when appointment status changes
+async function sendStatusNotification(customerWhatsApp, appointment, newStatus) {
+  try {
+    let message = "";
+    const device = `${appointment.brand || ''} ${appointment.model || ''}`.trim();
+    const issue = appointment.issue || '';
+    const dateTime = `${appointment.date || ''} at ${appointment.time || ''}`.trim();
+    const estimate = appointment.estimate ? `₹${appointment.estimate.toLocaleString('en-IN')}` : '';
+    
+    switch (newStatus) {
+      case 'confirmed':
+        message = [
+          `✅ *Appointment Confirmed!*`,
+          ``,
+          `Hello ${appointment.name || 'Customer'}!`,
+          ``,
+          `Your repair appointment has been confirmed:`,
+          `📱 Device: ${device}`,
+          `🔧 Issue: ${issue}`,
+          estimate ? `💰 Estimate: ${estimate}` : '',
+          `📅 Date & Time: ${dateTime}`,
+          ``,
+          `We look forward to seeing you! Please arrive 5 minutes early.`,
+          ``,
+          `Reply with any questions or type 'help' for options.`
+        ].filter(Boolean).join('\n');
+        break;
+        
+      case 'completed':
+        message = [
+          `✅ *Service Completed!*`,
+          ``,
+          `Hello ${appointment.name || 'Customer'}!`,
+          ``,
+          `Your ${device} repair has been completed successfully! 🎉`,
+          ``,
+          `Issue fixed: ${issue}`,
+          estimate ? `Amount: ${estimate}` : '',
+          ``,
+          `Thank you for choosing our service!`,
+          `Please rate your experience by replying 1-5 stars.`,
+          ``,
+          `We hope to serve you again soon!`
+        ].filter(Boolean).join('\n');
+        break;
+        
+      case 'cancelled':
+        message = [
+          `❌ *Appointment Cancelled*`,
+          ``,
+          `Hello ${appointment.name || 'Customer'}!`,
+          ``,
+          `Your appointment for ${device} repair has been cancelled.`,
+          ``,
+          `📅 Was scheduled for: ${dateTime}`,
+          ``,
+          `If you'd like to reschedule, please type 'book' to create a new appointment.`,
+          ``,
+          `We're here to help if you have any questions!`
+        ].filter(Boolean).join('\n');
+        break;
+        
+      default:
+        // Don't send notification for pending or other statuses
+        return;
+    }
+    
+    if (message) {
+      await sendTextMessage(customerWhatsApp, message);
+      console.log(`Sent ${newStatus} notification to ${customerWhatsApp}`);
+    }
+  } catch (error) {
+    console.error('Failed to send status notification:', error.message);
+    // Don't throw - we don't want to fail the status update if notification fails
+  }
+}
+
 app.get("/admin/appointments", requireAdmin, async (req, res) => {
   const status = req.query.status;
   try {
-    if (mongoReady && Appointment) {
+    if (mongoReady && Appointment && dbConnected()) {
       const q = status ? { status } : {};
       const rows = await Appointment.find(q).sort({ createdAt: -1 }).limit(200);
       return res.json(rows);
@@ -749,16 +915,46 @@ app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
   const id = req.params.id;
   const { status, date, time } = req.body || {};
   try {
-    if (mongoReady && Appointment) {
+    let appointment = null;
+    let oldStatus = null;
+    
+    if (mongoReady && Appointment && dbConnected()) {
+      // Get old status first
+      const oldDoc = await Appointment.findById(id);
+      if (oldDoc) oldStatus = oldDoc.status;
+      
       const doc = await Appointment.findByIdAndUpdate(id, { $set: { status, date, time } }, { new: true });
+      appointment = doc;
+      
+      // Send notification if status changed
+      if (status && status !== oldStatus && doc.customerWhatsApp) {
+        await sendStatusNotification(doc.customerWhatsApp, doc, status);
+      }
+      
       return res.json(doc);
     }
+    
+    // JSON file storage
     const store = readJSON(APPTS_FILE, { appointments: [] });
     const idx = store.appointments.findIndex((a) => String(a.id) === String(id));
     if (idx === -1) return res.status(404).json({ error: "Not found" });
-    store.appointments[idx] = { ...store.appointments[idx], status: status ?? store.appointments[idx].status, date: date ?? store.appointments[idx].date, time: time ?? store.appointments[idx].time };
+    
+    oldStatus = store.appointments[idx].status;
+    store.appointments[idx] = { 
+      ...store.appointments[idx], 
+      status: status ?? store.appointments[idx].status, 
+      date: date ?? store.appointments[idx].date, 
+      time: time ?? store.appointments[idx].time 
+    };
+    appointment = store.appointments[idx];
     writeJSON(APPTS_FILE, store);
-    return res.json(store.appointments[idx]);
+    
+    // Send notification if status changed
+    if (status && status !== oldStatus && appointment.customerWhatsApp) {
+      await sendStatusNotification(appointment.customerWhatsApp, appointment, status);
+    }
+    
+    return res.json(appointment);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -766,7 +962,7 @@ app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
 
 app.get("/admin/inquiries", requireAdmin, async (_req, res) => {
   try {
-    if (mongoReady && Inquiry) {
+    if (mongoReady && Inquiry && dbConnected()) {
       const rows = await Inquiry.find().sort({ createdAt: -1 }).limit(200);
       return res.json(rows);
     }
@@ -787,10 +983,31 @@ app.post("/admin/reply", requireAdmin, async (req, res) => {
   try {
     const { to, body } = req.body || {};
     if (!to || !body) return res.status(400).json({ error: "to and body are required" });
-    await sendTextMessage(to, body);
-    return res.json({ ok: true });
+    try {
+      await sendTextMessage(to, body);
+      return res.json({ ok: true });
+    } catch (e) {
+      if (DEV_FAKE_SEND) {
+        // For local/dev usage: save message even if WhatsApp send failed
+        await saveOutgoing(to, body);
+        return res.json({ ok: true, devFake: true });
+      }
+      throw e;
+    }
   } catch (e) {
     logGraphError(e, "admin.reply");
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Dev-only: seed a sample conversation
+app.post("/admin/seed", requireAdmin, async (req, res) => {
+  const { contact = "919999999999", text = "Hi, I need a screen repair" } = req.body || {};
+  try {
+    await saveInboundText(contact, text);
+    await saveOutgoing(contact, "Sure, I can help with that!");
+    res.json({ ok: true, contact });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -798,7 +1015,7 @@ app.post("/admin/reply", requireAdmin, async (req, res) => {
 // Chat list and message history
 app.get("/admin/chats", requireAdmin, async (_req, res) => {
   try {
-    if (mongoReady && Inquiry) {
+    if (mongoReady && Inquiry && dbConnected()) {
       const rows = await Inquiry.aggregate([
         { $sort: { createdAt: -1 } },
         {
@@ -857,7 +1074,7 @@ app.get("/admin/messages", requireAdmin, async (req, res) => {
   try {
     const contact = req.query.contact;
     if (!contact) return res.status(400).json({ error: "contact is required" });
-    if (mongoReady && Inquiry) {
+    if (mongoReady && Inquiry && dbConnected()) {
       const msgs = await Inquiry.find({ contact }).sort({ createdAt: 1 }).limit(500);
       return res.json(msgs);
     }

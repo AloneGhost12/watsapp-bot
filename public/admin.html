@@ -2,234 +2,2085 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Repair Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <title>WhatsApp Repair Bot - Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0b1220; --panel:#11182a; --panel2:#0f1627; --accent:#5b8cff; --accent2:#8a5bff; --text:#e6eeff; --muted:#98a2b3;
-      --success:#2ecc71; --danger:#ff5b6e; --warning:#ffc857;
+      --bg:#0a0e1a; --bg-gradient:#0f1419; --panel:#1a1f2e; --panel2:#151a26; 
+      --accent:#6366f1; --accent2:#8b5cf6; --accent-hover:#7c3aed;
+      --text:#f1f5f9; --text-secondary:#cbd5e1; --muted:#94a3b8; --muted-dark:#64748b;
+      --success:#10b981; --danger:#ef4444; --warning:#f59e0b; --info:#3b82f6;
+      --border:rgba(148,163,184,0.1); --border-light:rgba(148,163,184,0.06);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.3);
     }
-    *{ box-sizing: border-box }
-    body{ margin:0; font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Arial; color:var(--text); background:
-      radial-gradient(1200px 600px at -10% -10%, rgba(91,140,255,.12), transparent),
-      radial-gradient(1200px 600px at 110% 10%, rgba(138,91,255,.12), transparent),
-      linear-gradient(180deg, #0b1220, #0b1220 40%, #0a1020 100%)
+    
+    *{ box-sizing: border-box; margin:0; padding:0; }
+    
+    html {
+      overflow-x: hidden;
+      width: 100%;
     }
+    
+    body{ 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color:var(--text); 
+      background: var(--bg);
+      background-image: 
+        radial-gradient(ellipse 1400px 800px at 5% 10%, rgba(99,102,241,0.15), transparent),
+        radial-gradient(ellipse 1200px 700px at 95% 90%, rgba(139,92,246,0.12), transparent),
+        radial-gradient(ellipse 800px 600px at 50% 50%, rgba(59,130,246,0.05), transparent);
+      min-height:100vh;
+      overflow-x:hidden;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
+      max-width: 100vw;
+      position: relative;
+    }
+    
+    /* Header */
     header{
-      position: sticky; top:0; z-index:10; background: linear-gradient(90deg, rgba(15,22,39,.8), rgba(17,24,42,.8));
-      backdrop-filter: blur(8px); border-bottom:1px solid rgba(255,255,255,.06);
-      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      position: sticky; top:0; z-index:100; 
+      background: rgba(26,31,46,0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom:1px solid var(--border);
+      box-shadow: var(--shadow);
+      animation: slideDown 0.3s ease;
     }
-    h1{ font-size:16px; margin:0; letter-spacing:.2px }
-    .badge{ padding:4px 8px; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent2)); font-size:12px }
-    input,button,select,textarea{ background:#0c1323; color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:8px 10px; font-size:14px }
-    input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--accent) }
-    button{ cursor:pointer; transition: transform .05s ease, background .2s ease; }
-    button:hover{ transform: translateY(-1px); }
-    .btn{ background:linear-gradient(90deg, var(--accent), var(--accent2)); border:none }
-    .btn.secondary{ background:#0c1323; border:1px solid rgba(255,255,255,.08) }
-    .layout{ display:grid; grid-template-columns: 320px 1fr 360px; gap:12px; padding:12px }
-    .panel{ background:linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid rgba(255,255,255,.06); border-radius:14px; overflow:hidden }
-    .panel h3{ margin:0; padding:12px 14px; font-size:14px; border-bottom:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.02) }
-    .chats{ display:flex; flex-direction:column; height: calc(100vh - 80px) }
-    .chat-search{ padding:12px }
-    .chat-list{ overflow:auto; animation: fadein .3s ease }
-    .chat-item{ display:flex; gap:10px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); cursor:pointer; align-items:center; transition: background .2s }
-    .chat-item:hover{ background:rgba(255,255,255,.04) }
-    .chat-item.active{ background:rgba(91,140,255,.12) }
-    .chat-item .avatar{ width:32px; height:32px; border-radius:999px; background:linear-gradient(135deg, var(--accent), var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff }
-    .chat-item .meta{ flex:1 }
-    .chat-item .meta .name{ font-size:14px }
-    .chat-item .meta .last{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-    .chat-item .time{ font-size:11px; color:var(--muted) }
-    .messages{ display:flex; flex-direction:column; height: calc(100vh - 80px); }
-    .msg-feed{ flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; animation: slidein .25s ease }
-    .bubble{ max-width:70%; padding:10px 12px; border-radius:14px; font-size:14px; line-height:1.35; box-shadow: 0 2px 8px rgba(0,0,0,.24); animation: pop .15s ease }
-    .in{ align-self:flex-start; background:#0f1a33; border:1px solid rgba(255,255,255,.06) }
-    .out{ align-self:flex-end; background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff }
-    .msg-meta{ font-size:11px; opacity:.75; margin-top:4px }
-    .composer{ display:flex; gap:8px; padding:12px; border-top:1px solid rgba(255,255,255,.06) }
-    .rightcol{ display:flex; flex-direction:column; height: calc(100vh - 80px) }
-    .card{ padding:12px; border-bottom:1px solid rgba(255,255,255,.06) }
-    table{ width:100%; border-collapse: collapse }
-    th,td{ border-bottom:1px solid rgba(255,255,255,.06); padding:8px; font-size:13px }
-    th{ color:var(--muted); font-weight:500; text-align:left }
-    .small{ font-size:12px; color:var(--muted) }
-    .success{ color: var(--success)} .error{ color: var(--danger)}
-    @keyframes pop{ from{ transform:scale(.98); opacity:.5 } to{ transform:scale(1); opacity:1 } }
-    @keyframes fadein{ from{ opacity:0 } to{ opacity:1 } }
-    @keyframes slidein{ from{ transform:translateY(6px); opacity:.6 } to{ transform:none; opacity:1 } }
+    
+    .header-content{
+      display:flex; align-items:center; gap:16px; padding:16px 24px; max-width:1920px; margin:0 auto;
+    }
+    
+    .logo{
+      display:flex; align-items:center; gap:12px; font-size:20px; font-weight:700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .logo-icon{
+      width:40px; height:40px; border-radius:12px; 
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; box-shadow: var(--shadow);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .badge{ 
+      padding:6px 12px; border-radius:20px; 
+      background:linear-gradient(135deg, var(--success), #059669); 
+      font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;
+      box-shadow: 0 0 20px rgba(16,185,129,0.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .header-controls{
+      display:flex; align-items:center; gap:12px; margin-left:auto; flex-wrap:wrap;
+    }
+    
+    input,button,select,textarea{ 
+      background:var(--panel2); color:var(--text); 
+      border:1px solid var(--border); border-radius:10px; 
+      padding:10px 14px; font-size:14px; font-family:inherit;
+      transition: all 0.2s ease;
+    }
+    
+    input:focus,select:focus,textarea:focus{ 
+      outline:none; border-color:var(--accent); 
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+    
+    input::placeholder{ color:var(--muted-dark); }
+    
+    button{ 
+      cursor:pointer; font-weight:500;
+      transition: all 0.2s ease;
+    }
+    
+    button:hover{ transform: translateY(-2px); box-shadow: var(--shadow); }
+    button:active{ transform: translateY(0); }
+    
+    .btn{ 
+      background:linear-gradient(135deg, var(--accent), var(--accent2)); 
+      border:none; color:#fff; padding:10px 20px;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+    .btn:hover{ box-shadow: 0 6px 16px rgba(99,102,241,0.4); }
+    
+    .btn.secondary{ 
+      background:var(--panel2); 
+      border:1px solid var(--border); 
+      color:var(--text-secondary);
+    }
+    .btn.secondary:hover{ background:var(--panel); border-color:var(--accent); }
+    
+    .btn-icon{
+      width:40px; height:40px; display:flex; align-items:center; 
+      justify-content:center; padding:0; border-radius:10px;
+    }
+    
+    /* Layout */
+    .layout{ 
+      display:grid; 
+      grid-template-columns: minmax(300px, 340px) minmax(400px, 1fr) minmax(350px, 400px); 
+      gap:20px; 
+      padding:20px 24px; 
+      max-width:100%;
+      width:100%;
+      margin:0 auto;
+      animation: fadeIn 0.4s ease;
+      box-sizing: border-box;
+    }
+    
+    @media (min-width: 1600px) {
+      .layout{ 
+        max-width:1920px;
+        grid-template-columns: 340px 1fr 400px; 
+      }
+    }
+    
+    @media (max-width: 1599px) and (min-width: 1400px) {
+      .layout{ grid-template-columns: 300px 1fr 340px; gap:16px; }
+    }
+    
+    @media (max-width: 1399px) and (min-width: 1200px) {
+      .layout{ grid-template-columns: 280px 1fr 320px; gap:12px; padding:12px 16px; }
+    }
+    
+    @media (max-width: 1199px) {
+      .layout{ 
+        grid-template-columns: 1fr !important; 
+        grid-template-rows: auto auto auto;
+        gap:16px;
+        padding:16px;
+      }
+      
+      .panel.chats, .panel.messages, .rightcol{ 
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      .chats{ 
+        height: 400px !important; 
+        position: relative !important; 
+        top: 0 !important; 
+      }
+      
+      .messages{ 
+        height: 500px !important; 
+      }
+      
+      .rightcol{ 
+        max-height: none !important; 
+        height: auto !important;
+        position: relative !important;
+        top: 0 !important;
+        overflow-y: visible !important;
+        padding-bottom: 0;
+      }
+      
+      .rightcol > .panel {
+        margin-bottom: 16px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      body{ overflow-x: hidden; }
+      
+      .header-content{
+        padding:12px 16px; gap:8px; flex-wrap:wrap;
+      }
+      
+      .logo{ font-size:16px; }
+      .logo-icon{ width:32px; height:32px; font-size:16px; }
+      
+      .header-controls { 
+        width: 100%; 
+        gap: 8px;
+      }
+      
+      .header-controls input{ 
+        min-width:120px; 
+        font-size:12px; 
+        padding:8px 10px; 
+        flex: 1;
+      }
+      
+      .header-controls button{ font-size:12px; padding:8px 12px; }
+      
+      .layout{ 
+        padding:12px; 
+        gap:12px; 
+        width: 100vw;
+        max-width: 100vw;
+        box-sizing: border-box;
+      }
+      
+      .chats{ height: 350px !important; }
+      .messages{ height: 450px !important; }
+      
+      .panel {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .header-content{ 
+        padding:8px 12px; 
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .logo{ 
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .logo span{ display:inline; }
+      
+      .badge {
+        margin-left: auto;
+      }
+      
+      .header-controls{ 
+        width:100%; 
+        flex-direction: column;
+      }
+      
+      .header-controls input,
+      .header-controls button{ 
+        width: 100%;
+        min-width: auto;
+      }
+      
+      .layout{ 
+        padding:8px; 
+        gap:8px;
+        width: 100vw;
+        max-width: 100vw;
+      }
+      
+      .panel{ 
+        border-radius:12px; 
+        width: 100%;
+      }
+      
+      .stats-grid{ 
+        grid-template-columns: 1fr 1fr; 
+      }
+    }
+    
+    /* Panel */
+    .panel{ 
+      background:var(--panel); 
+      border:1px solid var(--border); 
+      border-radius:16px; 
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      animation: slideUp 0.4s ease;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    
+    .panel h3{ 
+      margin:0; padding:16px 18px; font-size:15px; font-weight:600;
+      border-bottom:1px solid var(--border-light); 
+      background:rgba(99,102,241,0.05);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    
+    /* Chats */
+    .chats{ 
+      display:flex; flex-direction:column; 
+      height: calc(100vh - 140px); 
+      position:sticky; top:100px;
+    }
+    
+    .chat-search{ padding:16px; }
+    .chat-search input{ width:100%; }
+    
+    .chat-list{ 
+      overflow-y:auto; overflow-x:hidden;
+      animation: fadeIn .3s ease;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) var(--panel2);
+    }
+    
+    .chat-list::-webkit-scrollbar{ width:6px; }
+    .chat-list::-webkit-scrollbar-track{ background:var(--panel2); }
+    .chat-list::-webkit-scrollbar-thumb{ background:var(--accent); border-radius:3px; }
+    
+    .chat-item{ 
+      display:flex; gap:12px; padding:14px 16px; 
+      border-bottom:1px solid var(--border-light); 
+      cursor:pointer; align-items:center; 
+      transition: all 0.2s ease;
+      position:relative;
+    }
+    
+    .chat-item:hover{ background:rgba(99,102,241,0.08); }
+    .chat-item.active{ 
+      background:rgba(99,102,241,0.15); 
+      border-left:3px solid var(--accent);
+    }
+    .chat-item.active::before{
+      content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+      background:linear-gradient(180deg, var(--accent), var(--accent2));
+    }
+    
+    .chat-item .avatar{ 
+      width:44px; height:44px; border-radius:50%; 
+      background:linear-gradient(135deg, var(--accent), var(--accent2)); 
+      display:flex; align-items:center; justify-content:center; 
+      font-size:16px; color:#fff; font-weight:600;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+      flex-shrink:0;
+    }
+    
+    .chat-item .meta{ flex:1; min-width:0; }
+    .chat-item .meta .name{ 
+      font-size:14px; font-weight:600; margin-bottom:4px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .chat-item .meta .last{ 
+      font-size:13px; color:var(--muted); 
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    
+    .chat-item .time{ 
+      font-size:11px; color:var(--muted-dark); 
+      white-space:nowrap; align-self:flex-start;
+    }
+    
+    .unread-badge{
+      background:var(--danger); color:#fff; 
+      font-size:10px; font-weight:700;
+      padding:2px 6px; border-radius:10px; min-width:18px;
+      text-align:center;
+    }
+    
+    /* Messages */
+    .messages{ 
+      display:flex; flex-direction:column; 
+      height: calc(100vh - 140px); 
+    }
+    
+    .msg-header{
+      padding:16px 18px; border-bottom:1px solid var(--border-light);
+      background:rgba(99,102,241,0.05); display:flex; align-items:center;
+      justify-content:space-between;
+    }
+    
+    .msg-header h3{ border:none; padding:0; background:none; }
+    
+    .msg-feed{ 
+      flex:1; overflow-y:auto; overflow-x:hidden; padding:20px; 
+      display:flex; flex-direction:column; gap:12px; 
+      animation: fadeIn .3s ease;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) var(--panel2);
+    }
+    
+    .msg-feed::-webkit-scrollbar{ width:6px; }
+    .msg-feed::-webkit-scrollbar-track{ background:var(--panel2); }
+    .msg-feed::-webkit-scrollbar-thumb{ background:var(--accent); border-radius:3px; }
+    
+    .bubble{ 
+      max-width:75%; padding:12px 16px; border-radius:16px; 
+      font-size:14px; line-height:1.5; 
+      box-shadow: var(--shadow);
+      animation: messageSlide 0.3s ease;
+      word-wrap: break-word;
+    }
+    
+    .in{ 
+      align-self:flex-start; 
+      background:var(--panel2); 
+      border:1px solid var(--border);
+      border-bottom-left-radius:4px;
+    }
+    
+    .out{ 
+      align-self:flex-end; 
+      background:linear-gradient(135deg, var(--accent), var(--accent2)); 
+      color:#fff; border:none;
+      border-bottom-right-radius:4px;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+    
+    .msg-meta{ 
+      font-size:11px; opacity:.7; margin-top:6px; 
+      display:flex; align-items:center; gap:8px;
+    }
+    
+    .composer{ 
+      display:flex; gap:12px; padding:16px; 
+      border-top:1px solid var(--border-light);
+      background:rgba(99,102,241,0.03);
+    }
+    
+    .composer input{ flex:1; }
+    
+    /* Right Column */
+    .rightcol{ 
+      display:flex; 
+      flex-direction:column; 
+      height: calc(100vh - 140px); 
+      gap:20px; 
+      overflow-y:auto !important;
+      overflow-x: hidden;
+      position:sticky; 
+      top:100px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) var(--panel2);
+      width: 100%;
+      max-width: 100%;
+      padding-bottom: 20px;
+    }
+    
+    .rightcol > .panel {
+      flex-shrink: 0;
+    }
+    
+    .rightcol::-webkit-scrollbar{ width:8px; }
+    .rightcol::-webkit-scrollbar-track{ background:var(--panel2); }
+    .rightcol::-webkit-scrollbar-thumb{ background:var(--accent); border-radius:4px; }
+    
+    .card{ 
+      padding:20px; 
+      border-bottom:1px solid var(--border-light);
+      overflow: visible;
+    }
+    
+    .card:last-child{ border-bottom:none; }
+    
+    .card h3{ 
+      font-size:16px; margin-bottom:8px; color:var(--text);
+      display:flex; align-items:center; gap:8px;
+    }
+    
+    .card-subtitle{ 
+      font-size:13px; color:var(--muted); margin-bottom:16px;
+    }
+    
+    .form-group{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .form-group label{ font-size:13px; font-weight:500; color:var(--text-secondary); }
+    
+    .form-row{ display:flex; gap:8px; align-items:flex-end; }
+    
+    /* Stats Cards */
+    .stats-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;
+    }
+    
+    .stat-card{
+      background:var(--panel2); padding:16px; border-radius:12px;
+      border:1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    
+    .stat-card:hover{
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color:var(--accent);
+    }
+    
+    .stat-value{
+      font-size:24px; font-weight:700; 
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .stat-label{ font-size:12px; color:var(--muted); margin-top:4px; }
+    
+    /* Table */
+    .table-container{
+      max-height:300px; 
+      overflow:auto; 
+      margin-top:16px;
+      border:1px solid var(--border); 
+      border-radius:12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    table{ 
+      width:100%; border-collapse: collapse; 
+    }
+    
+    th,td{ 
+      border-bottom:1px solid var(--border-light); 
+      padding:12px; font-size:13px; text-align:left;
+    }
+    
+    th{ 
+      color:var(--text-secondary); font-weight:600; 
+      background:var(--panel2); position:sticky; top:0; z-index:1;
+    }
+    
+    tr:hover{ background:rgba(99,102,241,0.05); }
+    
+    .status-badge{
+      display:inline-block; padding:4px 10px; border-radius:12px;
+      font-size:11px; font-weight:600; text-transform:capitalize;
+    }
+    
+    .status-pending{ background:rgba(245,158,11,0.2); color:var(--warning); }
+    .status-confirmed{ background:rgba(59,130,246,0.2); color:var(--info); }
+    .status-completed{ background:rgba(16,185,129,0.2); color:var(--success); }
+    .status-cancelled{ background:rgba(239,68,68,0.2); color:var(--danger); }
+    
+    /* Utilities */
+    .small{ font-size:12px; color:var(--muted); }
+    .success{ color: var(--success); }
+    .error{ color: var(--danger); }
+    .info{ color: var(--info); }
+    .warning{ color: var(--warning); }
+    
+    .mt-1{ margin-top:8px; }
+    .mt-2{ margin-top:16px; }
+    .mb-1{ margin-bottom:8px; }
+    .mb-2{ margin-bottom:16px; }
+    
+    .flex{ display:flex; }
+    .items-center{ align-items:center; }
+    .justify-between{ justify-content:space-between; }
+    .gap-2{ gap:8px; }
+    .gap-3{ gap:12px; }
+    
+    /* Loading State */
+    .loading{
+      display:inline-block;
+      width:16px; height:16px;
+      border:2px solid var(--border);
+      border-top-color:var(--accent);
+      border-radius:50%;
+      animation: spin 0.6s linear infinite;
+    }
+    
+    /* Animations */
+    @keyframes pulse{ 
+      0%, 100%{ opacity:1; } 
+      50%{ opacity:.8; } 
+    }
+    
+    @keyframes spin{ 
+      to{ transform: rotate(360deg); } 
+    }
+    
+    @keyframes fadeIn{ 
+      from{ opacity:0; } 
+      to{ opacity:1; } 
+    }
+    
+    @keyframes slideDown{ 
+      from{ transform: translateY(-100%); opacity:0; } 
+      to{ transform: translateY(0); opacity:1; } 
+    }
+    
+    @keyframes slideUp{ 
+      from{ transform: translateY(20px); opacity:0; } 
+      to{ transform: translateY(0); opacity:1; } 
+    }
+    
+    @keyframes messageSlide{
+      from{ transform: translateY(10px); opacity:0; }
+      to{ transform: translateY(0); opacity:1; }
+    }
+    
+    /* Empty States */
+    .empty-state{
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; padding:40px 20px; text-align:center;
+    }
+    
+    .empty-state-icon{
+      font-size:48px; opacity:0.3; margin-bottom:16px;
+    }
+    
+    .empty-state-text{
+      color:var(--muted); font-size:14px;
+    }
+    
+    /* Toast Notifications */
+    .toast{
+      position:fixed; bottom:24px; right:24px; z-index:1000;
+      background:var(--panel); border:1px solid var(--border);
+      border-radius:12px; padding:16px 20px; box-shadow: var(--shadow-lg);
+      display:flex; align-items:center; gap:12px;
+      animation: slideInRight 0.3s ease;
+      min-width:280px; max-width:400px;
+    }
+    
+    @keyframes slideInRight{
+      from{ transform: translateX(400px); opacity:0; }
+      to{ transform: translateX(0); opacity:1; }
+    }
+    
+    .toast.success{ border-left:4px solid var(--success); }
+    .toast.error{ border-left:4px solid var(--danger); }
+    .toast.info{ border-left:4px solid var(--info); }
+    
+    /* Hamburger Menu */
+    .hamburger-btn {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 200;
+      box-shadow: 0 8px 20px rgba(99,102,241,0.5);
+      transition: all 0.3s ease;
+    }
+    
+    .hamburger-btn:hover {
+      transform: scale(1.1) rotate(90deg);
+      box-shadow: 0 12px 28px rgba(99,102,241,0.6);
+    }
+    
+    .hamburger-btn.active {
+      transform: rotate(45deg);
+    }
+    
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10,14,26,0.98);
+      backdrop-filter: blur(20px);
+      z-index: 150;
+      overflow-y: auto;
+      padding: 80px 20px 100px;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .mobile-menu.show {
+      display: block;
+    }
+    
+    .mobile-menu-close {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 160;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .mobile-menu-close:hover {
+      background: var(--accent);
+      transform: rotate(90deg);
+    }
+    
+    .mobile-menu-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(26,31,46,0.95);
+      backdrop-filter: blur(20px);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      z-index: 160;
+    }
+    
+    .mobile-menu-title {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .mobile-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+    
+    .mobile-nav-item {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      animation: slideUp 0.4s ease;
+    }
+    
+    .mobile-nav-item:hover {
+      transform: translateX(8px);
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+    
+    .mobile-nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      text-decoration: none;
+      color: var(--text);
+      gap: 16px;
+    }
+    
+    .mobile-nav-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    
+    .mobile-nav-content {
+      flex: 1;
+    }
+    
+    .mobile-nav-label {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    
+    .mobile-nav-desc {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    
+    .mobile-nav-arrow {
+      font-size: 20px;
+      color: var(--accent);
+      transition: transform 0.2s ease;
+    }
+    
+    .mobile-nav-item:hover .mobile-nav-arrow {
+      transform: translateX(4px);
+    }
+    
+    .mobile-section-view {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg);
+      z-index: 170;
+      overflow-y: auto;
+      padding: 80px 20px 100px;
+      animation: slideInRight 0.3s ease;
+    }
+    
+    .mobile-section-view.active {
+      display: block;
+    }
+    
+    @keyframes slideInRight {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+    
+    .mobile-section-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(26,31,46,0.95);
+      backdrop-filter: blur(20px);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      z-index: 180;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .mobile-back-btn {
+      width: 36px;
+      height: 36px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .mobile-back-btn:hover {
+      background: var(--accent);
+      transform: translateX(-4px);
+    }
+    
+    .mobile-section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .mobile-section-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    @media (max-width: 1199px) {
+      .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .layout {
+        padding-bottom: 100px; /* Space for hamburger button */
+      }
+      
+      /* Hide right column on tablet/mobile, show in hamburger menu */
+      .rightcol {
+        display: none !important;
+      }
+    }
+    
+    /* Mobile-specific responsive styles */
+    @media (max-width: 768px) {
+      .table-container{ 
+        overflow-x: auto; 
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      table{ 
+        min-width: 800px;
+      }
+      
+      th, td{ 
+        padding:8px; 
+        font-size:12px;
+        white-space: nowrap;
+      }
+      
+      .form-row{ 
+        flex-direction: column; 
+        align-items: stretch;
+      }
+      
+      .form-row .form-group{ 
+        margin-bottom:8px;
+      }
+      
+      .form-row button{ 
+        width:100%;
+      }
+      
+      .composer{ 
+        padding:12px; 
+        gap:8px;
+      }
+      
+      .bubble{ 
+        max-width:85%; 
+        font-size:13px;
+        padding:10px 14px;
+      }
+      
+      .msg-feed{ 
+        padding:12px;
+      }
+      
+      .card{ 
+        padding:16px;
+      }
+      
+      .stats-grid{ 
+        gap:8px;
+      }
+      
+      .stat-card{ 
+        padding:12px;
+      }
+      
+      .stat-value{ 
+        font-size:20px;
+      }
+      
+      .toast{ 
+        left:12px; 
+        right:12px; 
+        bottom:80px; /* Above hamburger button */
+        min-width:auto;
+        max-width:none;
+      }
+      
+      .hamburger-btn {
+        width: 52px;
+        height: 52px;
+        font-size: 22px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .header-controls input:nth-child(2),
+      .header-controls input:nth-child(3){ 
+        width:100%;
+        min-width:auto;
+      }
+      
+      .chat-item .avatar{ 
+        width:36px; 
+        height:36px;
+        font-size:14px;
+      }
+      
+      .chat-item .meta .name{ 
+        font-size:13px;
+      }
+      
+      .chat-item .meta .last{ 
+        font-size:12px;
+      }
+      
+      .panel h3{ 
+        font-size:14px; 
+        padding:12px 14px;
+      }
+      
+      .card h3{ 
+        font-size:15px;
+      }
+      
+      .empty-state-icon{ 
+        font-size:36px;
+      }
+      
+      .empty-state-text{ 
+        font-size:13px;
+      }
+    }
+    
+    /* Scrollbar for mobile webkit */
+    @media (max-width: 768px) {
+      .chat-list::-webkit-scrollbar,
+      .msg-feed::-webkit-scrollbar,
+      .rightcol::-webkit-scrollbar,
+      .table-container::-webkit-scrollbar{ 
+        width:4px; 
+        height:4px;
+      }
+      
+      .table-container::-webkit-scrollbar-thumb{ 
+        background:var(--accent); 
+        border-radius:2px;
+      }
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>Repair Admin <span class="badge">Live</span></h1>
-    <input id="token" type="password" placeholder="Admin token" style="margin-left:auto; min-width:260px" />
-    <button class="btn secondary" onclick="refreshAll()">Refresh</button>
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">💬</div>
+        <span>WhatsApp Repair Bot</span>
+      </div>
+      <span class="badge">● Live</span>
+      
+      <div class="header-controls">
+        <input id="token" type="password" placeholder="🔐 Admin token" style="min-width:180px" />
+        <input id="backend" type="text" placeholder="🌐 Backend URL (optional)" style="min-width:220px" />
+        <button class="btn secondary" onclick="setBackendFromUI()">
+          <span>✓</span> Apply
+        </button>
+        <div id="health" class="small"></div>
+        <button class="btn" onclick="refreshAll()">
+          <span>⟳</span> Refresh
+        </button>
+      </div>
+    </div>
   </header>
 
   <div class="layout">
+    <!-- Chat List Panel -->
     <section class="panel chats">
-      <div class="chat-search"><input id="chatSearch" placeholder="Search by number" oninput="renderChatList()" style="width:100%"/></div>
-      <div id="chatList" class="chat-list"></div>
+      <h3>
+        <span>💬 Conversations</span>
+        <span id="chatCount" class="small">0</span>
+      </h3>
+      <div class="chat-search">
+        <input id="chatSearch" placeholder="🔍 Search by number..." oninput="renderChatList()" />
+      </div>
+      <div id="chatList" class="chat-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-text">No conversations yet</div>
+        </div>
+      </div>
     </section>
 
+    <!-- Messages Panel -->
     <section class="panel messages">
-      <h3 id="chatTitle">Select a chat</h3>
-      <div id="feed" class="msg-feed"></div>
+      <div class="msg-header">
+        <h3 id="chatTitle">
+          <span>📱</span> Select a conversation
+        </h3>
+        <button class="btn secondary btn-icon" onclick="refreshMessages()" title="Refresh messages">⟳</button>
+      </div>
+      <div id="feed" class="msg-feed">
+        <div class="empty-state">
+          <div class="empty-state-icon">💭</div>
+          <div class="empty-state-text">Select a conversation to view messages</div>
+        </div>
+      </div>
       <div class="composer">
-        <input id="composeText" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter'){sendCurrent()}" />
-        <button class="btn" onclick="sendCurrent()">Send</button>
+        <input id="composeText" placeholder="✍️ Type your message..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendCurrent()}" />
+        <button class="btn" onclick="sendCurrent()">
+          <span>📤</span> Send
+        </button>
       </div>
     </section>
 
-    <section class="panel rightcol">
-      <div class="card">
-        <h3>Quick Reply</h3>
-        <div class="small">Send a one-off message</div>
-        <div style="display:flex; gap:8px; margin-top:8px">
-          <input id="to" placeholder="91xxxxxxxxxx" style="min-width:180px"/>
-          <input id="msg" placeholder="Message body" style="flex:1"/>
-          <button class="btn" onclick="sendReply()">Send</button>
+    <!-- Right Panel: Stats & Quick Actions -->
+    <section class="rightcol">
+      <!-- Stats Dashboard -->
+      <div class="panel">
+        <h3>📊 Dashboard Stats</h3>
+        <div class="card">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="totalChats">0</div>
+              <div class="stat-label">Total Chats</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="totalAppointments">0</div>
+              <div class="stat-label">Appointments</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="pendingCount">0</div>
+              <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="completedCount">0</div>
+              <div class="stat-label">Completed</div>
+            </div>
+          </div>
         </div>
-        <div id="sendStatus" class="small"></div>
       </div>
 
-      <div class="card">
-        <h3>Appointments</h3>
-        <div style="display:flex; gap:8px; align-items:center">
-          <label class="small">Status</label>
-          <select id="status"><option value="">All</option><option>pending</option><option>confirmed</option><option>completed</option><option>cancelled</option></select>
-          <button class="btn secondary" onclick="loadAppointments()">Load</button>
+      <!-- Quick Reply -->
+      <div class="panel">
+        <h3>⚡ Quick Message</h3>
+        <div class="card">
+          <div class="card-subtitle">Send a message to any WhatsApp number</div>
+          <div class="form-group">
+            <label>📞 Phone Number</label>
+            <input id="to" placeholder="91xxxxxxxxxx" />
+          </div>
+          <div class="form-group">
+            <label>💬 Message</label>
+            <textarea id="msg" placeholder="Type your message here..." rows="3" style="resize:vertical"></textarea>
+          </div>
+          <button class="btn" onclick="sendReply()" style="width:100%">
+            <span>📤</span> Send Message
+          </button>
+          <div id="sendStatus" class="small mt-1"></div>
         </div>
-        <div style="max-height:40vh; overflow:auto; margin-top:8px">
-          <table id="apptTable">
-            <thead><tr><th>When</th><th>Customer</th><th>Device</th><th>Issue</th><th>Estimate</th><th>Status</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
+      </div>
+
+      <!-- Appointments -->
+      <div class="panel">
+        <h3>📅 Appointments</h3>
+        <div class="card">
+          <div class="form-row mb-2">
+            <div class="form-group" style="flex:1; margin:0;">
+              <label>Filter Status</label>
+              <select id="status">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <button class="btn secondary" onclick="loadAppointments()" style="align-self:flex-end;">
+              🔍 Filter
+            </button>
+          </div>
+          
+          <div class="table-container">
+            <table id="apptTable">
+              <thead>
+                <tr>
+                  <th>📅 Date</th>
+                  <th>👤 Customer</th>
+                  <th>📱 Device</th>
+                  <th>🔧 Issue</th>
+                  <th>💰 Estimate</th>
+                  <th>📊 Status</th>
+                  <th>⚙️ Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+                    <div class="empty-state-icon" style="font-size:32px; margin-bottom:8px;">📅</div>
+                    <div>No appointments found</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
   </div>
 
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Hamburger Menu Button -->
+  <button class="hamburger-btn" onclick="toggleMobileMenu()" id="hamburgerBtn">
+    ☰
+  </button>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-header">
+      <div class="mobile-menu-title">📊 Dashboard Menu</div>
+    </div>
+    <button class="mobile-menu-close" onclick="toggleMobileMenu()">×</button>
+    
+    <ul class="mobile-nav-list">
+      <li class="mobile-nav-item" onclick="openMobileSection('stats')">
+        <div class="mobile-nav-link">
+          <div class="mobile-nav-icon">📊</div>
+          <div class="mobile-nav-content">
+            <div class="mobile-nav-label">Dashboard Stats</div>
+            <div class="mobile-nav-desc">View analytics and insights</div>
+          </div>
+          <div class="mobile-nav-arrow">→</div>
+        </div>
+      </li>
+      
+      <li class="mobile-nav-item" onclick="openMobileSection('quickmsg')">
+        <div class="mobile-nav-link">
+          <div class="mobile-nav-icon">⚡</div>
+          <div class="mobile-nav-content">
+            <div class="mobile-nav-label">Quick Message</div>
+            <div class="mobile-nav-desc">Send WhatsApp message instantly</div>
+          </div>
+          <div class="mobile-nav-arrow">→</div>
+        </div>
+      </li>
+      
+      <li class="mobile-nav-item" onclick="openMobileSection('appointments')">
+        <div class="mobile-nav-link">
+          <div class="mobile-nav-icon">📅</div>
+          <div class="mobile-nav-content">
+            <div class="mobile-nav-label">Appointments</div>
+            <div class="mobile-nav-desc">Manage bookings and schedules</div>
+          </div>
+          <div class="mobile-nav-arrow">→</div>
+        </div>
+      </li>
+      
+      <li class="mobile-nav-item" onclick="openMobileSection('conversations')">
+        <div class="mobile-nav-link">
+          <div class="mobile-nav-icon">💬</div>
+          <div class="mobile-nav-content">
+            <div class="mobile-nav-label">Conversations</div>
+            <div class="mobile-nav-desc">View all customer chats</div>
+          </div>
+          <div class="mobile-nav-arrow">→</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Mobile Section Views -->
+  <!-- Stats View -->
+  <div class="mobile-section-view" id="statsView">
+    <div class="mobile-section-header">
+      <button class="mobile-back-btn" onclick="closeMobileSection()">←</button>
+      <div class="mobile-section-title">📊 Dashboard Stats</div>
+    </div>
+    <div class="mobile-section-content">
+      <div class="panel">
+        <div class="card">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="mobileStatsChats">0</div>
+              <div class="stat-label">Total Chats</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="mobileStatsAppointments">0</div>
+              <div class="stat-label">Appointments</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="mobileStatsPending">0</div>
+              <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="mobileStatsCompleted">0</div>
+              <div class="stat-label">Completed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Message View -->
+  <div class="mobile-section-view" id="quickmsgView">
+    <div class="mobile-section-header">
+      <button class="mobile-back-btn" onclick="closeMobileSection()">←</button>
+      <div class="mobile-section-title">⚡ Quick Message</div>
+    </div>
+    <div class="mobile-section-content">
+      <div class="panel">
+        <div class="card">
+          <div class="card-subtitle">Send a message to any WhatsApp number</div>
+          <div class="form-group">
+            <label>📞 Phone Number</label>
+            <input id="mobileTo" placeholder="91xxxxxxxxxx" />
+          </div>
+          <div class="form-group">
+            <label>💬 Message</label>
+            <textarea id="mobileMsg" placeholder="Type your message here..." rows="5" style="resize:vertical"></textarea>
+          </div>
+          <button class="btn" onclick="sendMobileReply()" style="width:100%">
+            <span>📤</span> Send Message
+          </button>
+          <div id="mobileSendStatus" class="small mt-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appointments View -->
+  <div class="mobile-section-view" id="appointmentsView">
+    <div class="mobile-section-header">
+      <button class="mobile-back-btn" onclick="closeMobileSection()">←</button>
+      <div class="mobile-section-title">📅 Appointments</div>
+    </div>
+    <div class="mobile-section-content">
+      <div class="panel">
+        <div class="card">
+          <div class="form-row mb-2">
+            <div class="form-group" style="flex:1; margin:0;">
+              <label>Filter Status</label>
+              <select id="mobileStatus">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <button class="btn secondary" onclick="loadMobileAppointments()" style="align-self:flex-end;">
+              🔍 Filter
+            </button>
+          </div>
+          
+          <div class="table-container">
+            <table id="mobileApptTable">
+              <thead>
+                <tr>
+                  <th>📅 Date</th>
+                  <th>👤 Customer</th>
+                  <th>📱 Device</th>
+                  <th>🔧 Issue</th>
+                  <th>💰 Estimate</th>
+                  <th>📊 Status</th>
+                  <th>⚙️ Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+                    <div class="empty-state-icon" style="font-size:32px; margin-bottom:8px;">📅</div>
+                    <div>No appointments found</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conversations View -->
+  <div class="mobile-section-view" id="conversationsView">
+    <div class="mobile-section-header">
+      <button class="mobile-back-btn" onclick="closeMobileSection()">←</button>
+      <div class="mobile-section-title">💬 Conversations</div>
+    </div>
+    <div class="mobile-section-content">
+      <div class="panel">
+        <div class="card">
+          <div class="form-group">
+            <input id="mobileSearchChat" placeholder="🔍 Search by number..." oninput="renderMobileChats()" />
+          </div>
+          <div id="mobileConversationsList" style="max-height: 70vh; overflow-y: auto;">
+            <div class="empty-state">
+              <div class="empty-state-icon">💬</div>
+              <div class="empty-state-text">No conversations yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 <script>
-const base = '';
-let state = { chats: [], selected: null, messages: [] };
-function hdrs(){ return { 'x-admin-token': document.getElementById('token').value, 'Content-Type': 'application/json' }; }
+// Backend base URL resolution
+const params = new URLSearchParams(location.search);
+const qsBackend = params.get('backend');
+const qsToken = params.get('token');
+let base = '';
+
+try {
+  const saved = localStorage.getItem('adminBackend') || '';
+  base = (qsBackend ? qsBackend : saved).trim();
+  if (qsBackend) localStorage.setItem('adminBackend', base);
+  if (base && base.endsWith('/')) base = base.slice(0, -1);
+} catch (e) { }
+
+let state = { chats: [], selected: null, messages: [], appointments: [], stats: {} };
+let autoRefreshInterval = null;
+
+function hdrs(){ 
+  return { 
+    'x-admin-token': document.getElementById('token').value, 
+    'Content-Type': 'application/json' 
+  }; 
+}
+
+// Toast notifications
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div style="flex:1;">${message}</div>
+    <button onclick="this.parentElement.remove()" style="background:none; border:none; color:var(--text); cursor:pointer; padding:0; font-size:20px;">×</button>
+  `;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.animation = 'slideOutRight 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const savedToken = qsToken || localStorage.getItem('adminToken') || '';
+    if (savedToken) document.getElementById('token').value = savedToken;
+    if (qsToken) localStorage.setItem('adminToken', savedToken);
+  } catch (e) {}
+  
+  document.getElementById('backend').value = base;
+  
+  document.getElementById('token').addEventListener('input', () => {
+    try { 
+      localStorage.setItem('adminToken', document.getElementById('token').value || ''); 
+    } catch(e){}
+  });
+  
+  // Auto-refresh every 30 seconds
+  autoRefreshInterval = setInterval(() => {
+    if (document.getElementById('token').value) {
+      refreshAll(true); // silent refresh
+    }
+  }, 30000);
+  
+  setTimeout(() => refreshAll(), 500);
+});
+
+function setBackendFromUI(){
+  const v = (document.getElementById('backend').value||'').trim();
+  base = v.replace(/\/$/, '');
+  try { localStorage.setItem('adminBackend', base); } catch(e){}
+  showToast('Backend URL updated', 'success');
+  checkHealth();
+  refreshAll();
+}
+
+async function checkHealth(){
+  const el = document.getElementById('health');
+  if(!el) return;
+  el.innerHTML = '<span class="loading"></span> Checking...';
+  el.className = 'small';
+  
+  try{
+    const res = await fetch((base||'') + '/admin/health', { headers: hdrs() });
+    if(!res.ok){ 
+      el.textContent = '⚠️ Health: ' + res.status;
+      el.className='small error';
+      showToast('Server health check failed', 'error');
+      return;
+    }
+    const data = await res.json();
+    const mongo = data && data.mongoReady ? '🟢 DB Connected' : '🟡 DB Unavailable';
+    el.innerHTML = `✅ ${mongo}`;
+    el.className = 'small success';
+  }catch(err){
+    el.textContent = '❌ Connection Error';
+    el.className = 'small error';
+    showToast('Cannot connect to server', 'error');
+  }
+}
 
 async function loadChats(){
-  const res = await fetch(base + '/admin/chats', { headers: hdrs() });
-  if(!res.ok){ console.error('Failed to load chats'); return; }
-  state.chats = await res.json();
-  renderChatList();
+  try {
+    const res = await fetch((base||'') + '/admin/chats', { headers: hdrs() });
+    if(!res.ok){ 
+      console.error('Failed to load chats'); 
+      showToast('Failed to load conversations', 'error');
+      return;
+    }
+    state.chats = await res.json();
+    renderChatList();
+    updateStats();
+  } catch(e) {
+    console.error('Error loading chats:', e);
+  }
 }
 
 function renderChatList(){
-  const q = (document.getElementById('chatSearch').value||'').trim();
+  const q = (document.getElementById('chatSearch').value||'').trim().toLowerCase();
   const list = document.getElementById('chatList');
+  const filtered = (state.chats||[]).filter(c => !q || (c.contact||'').toLowerCase().includes(q));
+  
+  document.getElementById('chatCount').textContent = filtered.length;
+  
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">💬</div>
+        <div class="empty-state-text">${q ? 'No matching conversations' : 'No conversations yet'}</div>
+      </div>`;
+    return;
+  }
+  
   list.innerHTML = '';
-  (state.chats||[]).filter(c => !q || (c.contact||'').includes(q)).forEach((c, idx) => {
+  filtered.forEach((c, idx) => {
     const div = document.createElement('div');
     div.className = 'chat-item' + (state.selected===c.contact? ' active':'');
     div.onclick = () => selectChat(c.contact);
+    
     const initials = (c.contact||'').slice(-2);
-    const when = c.lastAt? new Date(c.lastAt).toLocaleTimeString(): '';
+    const when = c.lastAt ? formatTime(new Date(c.lastAt)) : '';
+    const dirIcon = c.lastDir === 'out' ? '📤' : '📥';
+    
     div.innerHTML = `
       <div class="avatar">${initials}</div>
-      <div class="meta"><div class="name">${c.contact}</div><div class="last">${(c.lastText||'')}</div></div>
+      <div class="meta">
+        <div class="name">
+          ${c.contact}
+          ${c.count ? `<span style="font-size:11px; color:var(--muted);">(${c.count})</span>` : ''}
+        </div>
+        <div class="last">${dirIcon} ${escapeHtml(c.lastText||'')}</div>
+      </div>
       <div class="time">${when}</div>`;
     list.appendChild(div);
   });
 }
 
 async function selectChat(contact){
-  state.selected = contact; state.messages = [];
-  document.getElementById('chatTitle').textContent = contact;
+  state.selected = contact;
+  state.messages = [];
+  document.getElementById('chatTitle').innerHTML = `<span>📱</span> ${contact}`;
   await loadMessages(contact);
+  renderChatList(); // Update active state
 }
 
 async function loadMessages(contact){
-  const res = await fetch(base + '/admin/messages?contact=' + encodeURIComponent(contact), { headers: hdrs() });
-  if(!res.ok){ console.error('Failed to load messages'); return; }
-  state.messages = await res.json();
-  renderMessages();
+  try {
+    const res = await fetch((base||'') + '/admin/messages?contact=' + encodeURIComponent(contact), { headers: hdrs() });
+    if(!res.ok){ 
+      console.error('Failed to load messages');
+      showToast('Failed to load messages', 'error');
+      return;
+    }
+    state.messages = await res.json();
+    renderMessages();
+  } catch(e) {
+    console.error('Error loading messages:', e);
+  }
 }
 
 function renderMessages(){
   const feed = document.getElementById('feed');
+  
+  if (!state.messages || state.messages.length === 0) {
+    feed.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">💭</div>
+        <div class="empty-state-text">No messages yet</div>
+      </div>`;
+    return;
+  }
+  
   feed.innerHTML = '';
   (state.messages||[]).forEach(m => {
     const div = document.createElement('div');
     const dir = m.direction || ((m.to && m.to!==undefined)? 'out':'in');
     div.className = 'bubble ' + (dir==='out'?'out':'in');
+    
     const ts = m.createdAt || m.ts;
-    const meta = ts? new Date(ts).toLocaleString() : '';
-    div.innerHTML = `<div>${(m.text||'').replaceAll('<','&lt;')}</div><div class="msg-meta">${meta}</div>`;
+    const meta = ts ? formatDateTime(new Date(ts)) : '';
+    const statusIcon = dir === 'out' ? '✓' : '';
+    
+    div.innerHTML = `
+      <div>${escapeHtml(m.text||'').replace(/\n/g, '<br>')}</div>
+      <div class="msg-meta">${statusIcon} ${meta}</div>`;
     feed.appendChild(div);
   });
+  
   feed.scrollTop = feed.scrollHeight;
 }
 
 async function sendCurrent(){
   const text = document.getElementById('composeText').value.trim();
-  if(!state.selected || !text) return;
+  if(!state.selected || !text) {
+    showToast('Please enter a message', 'warning');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> Sending...';
+  
   const ok = await postReply(state.selected, text);
-  if(ok){ document.getElementById('composeText').value=''; await loadMessages(state.selected); await loadChats(); }
+  
+  if(ok){ 
+    document.getElementById('composeText').value='';
+    showToast('Message sent successfully', 'success');
+    await loadMessages(state.selected);
+    await loadChats();
+  } else {
+    showToast('Failed to send message', 'error');
+  }
+  
+  btn.disabled = false;
+  btn.innerHTML = '<span>📤</span> Send';
 }
 
 async function postReply(to, body){
-  const res = await fetch(base + '/admin/reply', { method:'POST', headers: hdrs(), body: JSON.stringify({to, body}) });
-  return res.ok;
+  try {
+    const res = await fetch((base||'') + '/admin/reply', { 
+      method:'POST', 
+      headers: hdrs(), 
+      body: JSON.stringify({to, body}) 
+    });
+    return res.ok;
+  } catch(e) {
+    console.error('Error sending message:', e);
+    return false;
+  }
 }
 
 async function loadAppointments(){
   const status = document.getElementById('status').value;
-  const url = base + '/admin/appointments' + (status? ('?status=' + encodeURIComponent(status)) : '');
-  const res = await fetch(url, { headers: hdrs() });
-  if(!res.ok){ console.error('Failed to load appointments'); return; }
-  const data = await res.json();
+  const url = (base||'') + '/admin/appointments' + (status ? ('?status=' + encodeURIComponent(status)) : '');
+  
+  try {
+    const res = await fetch(url, { headers: hdrs() });
+    if(!res.ok){ 
+      console.error('Failed to load appointments');
+      showToast('Failed to load appointments', 'error');
+      return;
+    }
+    
+    state.appointments = await res.json();
+    renderAppointments();
+    updateStats();
+  } catch(e) {
+    console.error('Error loading appointments:', e);
+  }
+}
+
+function renderAppointments() {
   const tbody = document.querySelector('#apptTable tbody');
+  
+  if (!state.appointments || state.appointments.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+          <div class="empty-state-icon" style="font-size:32px; margin-bottom:8px;">📅</div>
+          <div>No appointments found</div>
+        </td>
+      </tr>`;
+    return;
+  }
+  
   tbody.innerHTML = '';
-  (data||[]).forEach(a => {
+  state.appointments.forEach(a => {
     const tr = document.createElement('tr');
+    const id = a._id || a.id;
     tr.innerHTML = `
-      <td>${(a.date||'')} ${(a.time||'')}</td>
-      <td>${a.name||''}<div class="small">${a.customerWhatsApp||''}</div></td>
-      <td>${(a.brand||'') + ' ' + (a.model||'')}</td>
-      <td>${a.issue||''}</td>
-      <td>${a.estimate!=null? ('₹'+a.estimate.toLocaleString('en-IN')):''}</td>
-      <td><select onchange="updateAppt('${a._id||a.id}', {status:this.value})">
-        ${['pending','confirmed','completed','cancelled'].map(s=>`<option ${a.status===s?'selected':''}>${s}</option>`).join('')}
-      </select></td>
       <td>
-        <button class="btn secondary" onclick="updateAppt('${a._id||a.id}', {status:'confirmed'})">Confirm</button>
-        <button class="btn secondary" onclick="updateAppt('${a._id||a.id}', {status:'completed'})">Done</button>
+        <div style="font-weight:500;">${a.date||''}</div>
+        <div class="small">${a.time||''}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">${escapeHtml(a.name||'')}</div>
+        <div class="small">${a.customerWhatsApp||''}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">${a.brand||''}</div>
+        <div class="small">${a.model||''}</div>
+      </td>
+      <td>${escapeHtml(a.issue||'')}</td>
+      <td style="font-weight:600; color:var(--success);">
+        ${a.estimate != null ? ('₹'+a.estimate.toLocaleString('en-IN')) : '-'}
+      </td>
+      <td>
+        <span class="status-badge status-${a.status||'pending'}">${a.status||'pending'}</span>
+      </td>
+      <td>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+          ${a.status !== 'confirmed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'confirmed'})">✓ Confirm</button>` : ''}
+          ${a.status !== 'completed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'completed'})">✓ Complete</button>` : ''}
+          ${a.status !== 'cancelled' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateAppt('${id}', {status:'cancelled'})">✗ Cancel</button>` : ''}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
 async function updateAppt(id, patch){
-  const res = await fetch(base + '/admin/appointments/' + encodeURIComponent(id), { method:'PATCH', headers: hdrs(), body: JSON.stringify(patch) });
-  if(!res.ok){ console.error('Update failed'); return; }
-  loadAppointments();
+  try {
+    const res = await fetch((base||'') + '/admin/appointments/' + encodeURIComponent(id), { 
+      method:'PATCH', 
+      headers: hdrs(), 
+      body: JSON.stringify(patch) 
+    });
+    
+    if(!res.ok){ 
+      showToast('Failed to update appointment', 'error');
+      return;
+    }
+    
+    showToast('Appointment updated successfully', 'success');
+    loadAppointments();
+  } catch(e) {
+    console.error('Error updating appointment:', e);
+    showToast('Error updating appointment', 'error');
+  }
 }
 
 async function sendReply(){
   const to = document.getElementById('to').value.trim();
   const body = document.getElementById('msg').value.trim();
   const el = document.getElementById('sendStatus');
+  
   el.textContent = '';
-  if(!to||!body){ el.textContent='Enter number and message'; el.className='small error'; return; }
+  
+  if(!to||!body){ 
+    el.textContent='⚠️ Enter both number and message';
+    el.className='small error';
+    showToast('Please enter both number and message', 'warning');
+    return;
+  }
+  
+  el.innerHTML = '<span class="loading"></span> Sending...';
+  el.className = 'small';
+  
   const ok = await postReply(to, body);
-  if(ok){ el.textContent='Sent'; el.className='small success'; document.getElementById('msg').value=''; if(state.selected===to){ await loadMessages(state.selected); await loadChats(); } }
-  else { el.textContent='Failed'; el.className='small error'; }
+  
+  if(ok){ 
+    el.textContent='✓ Sent successfully';
+    el.className='small success';
+    showToast('Message sent successfully', 'success');
+    document.getElementById('msg').value='';
+    
+    if(state.selected===to){ 
+      await loadMessages(state.selected);
+    }
+    await loadChats();
+  } else { 
+    el.textContent='✗ Failed to send';
+    el.className='small error';
+    showToast('Failed to send message', 'error');
+  }
 }
 
-async function refreshAll(){ await loadChats(); await loadAppointments(); if(state.selected){ await loadMessages(state.selected); } }
+function updateStats() {
+  const totalChats = (state.chats||[]).length;
+  const totalAppts = (state.appointments||[]).length;
+  const pending = (state.appointments||[]).filter(a => a.status === 'pending').length;
+  const completed = (state.appointments||[]).filter(a => a.status === 'completed').length;
+  
+  // Update desktop stats
+  document.getElementById('totalChats').textContent = totalChats;
+  document.getElementById('totalAppointments').textContent = totalAppts;
+  document.getElementById('pendingCount').textContent = pending;
+  document.getElementById('completedCount').textContent = completed;
+  
+  // Update mobile stats
+  const mobileChats = document.getElementById('mobileStatsChats');
+  const mobileAppts = document.getElementById('mobileStatsAppointments');
+  const mobilePending = document.getElementById('mobileStatsPending');
+  const mobileCompleted = document.getElementById('mobileStatsCompleted');
+  
+  if (mobileChats) mobileChats.textContent = totalChats;
+  if (mobileAppts) mobileAppts.textContent = totalAppts;
+  if (mobilePending) mobilePending.textContent = pending;
+  if (mobileCompleted) mobileCompleted.textContent = completed;
+}
 
-// Initial load after small delay for token input
-setTimeout(refreshAll, 200);
+async function refreshMessages() {
+  if (state.selected) {
+    await loadMessages(state.selected);
+    showToast('Messages refreshed', 'info');
+  }
+}
+
+async function refreshAll(silent = false){ 
+  if (!silent) {
+    showToast('Refreshing data...', 'info');
+  }
+  
+  await checkHealth();
+  await loadChats();
+  await loadAppointments();
+  
+  if(state.selected){ 
+    await loadMessages(state.selected);
+  }
+  
+  if (!silent) {
+    showToast('Data refreshed successfully', 'success');
+  }
+}
+
+// Utility functions
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatTime(date) {
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  
+  return date.toLocaleDateString();
+}
+
+function formatDateTime(date) {
+  return date.toLocaleString('en-IN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+  }
+});
+
+// Mobile Menu Functions
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const btn = document.getElementById('hamburgerBtn');
+  
+  if (menu.classList.contains('show')) {
+    menu.classList.remove('show');
+    btn.classList.remove('active');
+    document.body.style.overflow = '';
+  } else {
+    menu.classList.add('show');
+    btn.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function openMobileSection(section) {
+  // Hide menu
+  document.getElementById('mobileMenu').classList.remove('show');
+  
+  // Show selected section
+  const sectionMap = {
+    'stats': 'statsView',
+    'quickmsg': 'quickmsgView',
+    'appointments': 'appointmentsView',
+    'conversations': 'conversationsView'
+  };
+  
+  const viewId = sectionMap[section];
+  if (viewId) {
+    document.getElementById(viewId).classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Load data for the section
+    if (section === 'stats') {
+      updateStats();
+    } else if (section === 'appointments') {
+      loadMobileAppointments();
+    } else if (section === 'conversations') {
+      renderMobileChats();
+    }
+  }
+}
+
+function closeMobileSection() {
+  // Hide all section views
+  document.querySelectorAll('.mobile-section-view').forEach(view => {
+    view.classList.remove('active');
+  });
+  
+  // Show menu again
+  document.getElementById('mobileMenu').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderMobileChats() {
+  const q = (document.getElementById('mobileSearchChat').value||'').trim().toLowerCase();
+  const list = document.getElementById('mobileConversationsList');
+  const filtered = (state.chats||[]).filter(c => !q || (c.contact||'').toLowerCase().includes(q));
+  
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">💬</div>
+        <div class="empty-state-text">${q ? 'No matching conversations' : 'No conversations yet'}</div>
+      </div>`;
+    return;
+  }
+  
+  list.innerHTML = '';
+  filtered.forEach((c) => {
+    const div = document.createElement('div');
+    div.className = 'chat-item';
+    div.onclick = () => {
+      closeMobileSection();
+      document.getElementById('hamburgerBtn').classList.remove('active');
+      document.body.style.overflow = '';
+      selectChat(c.contact);
+      
+      // Scroll to messages section on mobile
+      setTimeout(() => {
+        const messagesPanel = document.querySelector('.messages');
+        if (messagesPanel) {
+          messagesPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    };
+    
+    const initials = (c.contact||'').slice(-2);
+    const when = c.lastAt ? formatTime(new Date(c.lastAt)) : '';
+    const dirIcon = c.lastDir === 'out' ? '📤' : '📥';
+    
+    div.innerHTML = `
+      <div class="avatar">${initials}</div>
+      <div class="meta">
+        <div class="name">
+          ${c.contact}
+          ${c.count ? `<span style="font-size:11px; color:var(--muted);">(${c.count})</span>` : ''}
+        </div>
+        <div class="last">${dirIcon} ${escapeHtml(c.lastText||'')}</div>
+      </div>
+      <div class="time">${when}</div>`;
+    list.appendChild(div);
+  });
+}
+
+async function sendMobileReply(){
+  const to = document.getElementById('mobileTo').value.trim();
+  const body = document.getElementById('mobileMsg').value.trim();
+  const el = document.getElementById('mobileSendStatus');
+  
+  el.textContent = '';
+  
+  if(!to||!body){ 
+    el.textContent='⚠️ Enter both number and message';
+    el.className='small error';
+    showToast('Please enter both number and message', 'warning');
+    return;
+  }
+  
+  el.innerHTML = '<span class="loading"></span> Sending...';
+  el.className = 'small';
+  
+  const ok = await postReply(to, body);
+  
+  if(ok){ 
+    el.textContent='✓ Sent successfully';
+    el.className='small success';
+    showToast('Message sent successfully', 'success');
+    document.getElementById('mobileMsg').value='';
+    
+    if(state.selected===to){ 
+      await loadMessages(state.selected);
+    }
+    await loadChats();
+  } else { 
+    el.textContent='✗ Failed to send';
+    el.className='small error';
+    showToast('Failed to send message', 'error');
+  }
+}
+
+async function loadMobileAppointments(){
+  const status = document.getElementById('mobileStatus').value;
+  const url = (base||'') + '/admin/appointments' + (status ? ('?status=' + encodeURIComponent(status)) : '');
+  
+  try {
+    const res = await fetch(url, { headers: hdrs() });
+    if(!res.ok){ 
+      console.error('Failed to load mobile appointments');
+      showToast('Failed to load appointments', 'error');
+      return;
+    }
+    
+    const appointments = await res.json();
+    renderMobileAppointments(appointments);
+  } catch(e) {
+    console.error('Error loading mobile appointments:', e);
+  }
+}
+
+function renderMobileAppointments(appointments) {
+  const tbody = document.querySelector('#mobileApptTable tbody');
+  
+  if (!appointments || appointments.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding:40px; color:var(--muted);">
+          <div class="empty-state-icon" style="font-size:32px; margin-bottom:8px;">📅</div>
+          <div>No appointments found</div>
+        </td>
+      </tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  appointments.forEach(a => {
+    const tr = document.createElement('tr');
+    const id = a._id || a.id;
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:500;">${a.date||''}</div>
+        <div class="small">${a.time||''}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">${escapeHtml(a.name||'')}</div>
+        <div class="small">${a.customerWhatsApp||''}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">${a.brand||''}</div>
+        <div class="small">${a.model||''}</div>
+      </td>
+      <td>${escapeHtml(a.issue||'')}</td>
+      <td style="font-weight:600; color:var(--success);">
+        ${a.estimate != null ? ('₹'+a.estimate.toLocaleString('en-IN')) : '-'}
+      </td>
+      <td>
+        <span class="status-badge status-${a.status||'pending'}">${a.status||'pending'}</span>
+      </td>
+      <td>
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+          ${a.status !== 'confirmed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'confirmed'})">✓ Confirm</button>` : ''}
+          ${a.status !== 'completed' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'completed'})">✓ Complete</button>` : ''}
+          ${a.status !== 'cancelled' ? `<button class="btn secondary" style="font-size:11px; padding:6px 10px;" onclick="updateMobileAppt('${id}', {status:'cancelled'})">✗ Cancel</button>` : ''}
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function updateMobileAppt(id, patch){
+  try {
+    const res = await fetch((base||'') + '/admin/appointments/' + encodeURIComponent(id), { 
+      method:'PATCH', 
+      headers: hdrs(), 
+      body: JSON.stringify(patch) 
+    });
+    
+    if(!res.ok){ 
+      showToast('Failed to update appointment', 'error');
+      return;
+    }
+    
+    showToast('Appointment updated successfully', 'success');
+    loadMobileAppointments();
+    loadAppointments(); // Also update desktop view
+  } catch(e) {
+    console.error('Error updating appointment:', e);
+    showToast('Error updating appointment', 'error');
+  }
+}
+
+// Close mobile menu/sections when clicking outside
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('mobileMenu');
+  const btn = document.getElementById('hamburgerBtn');
+  const activeSection = document.querySelector('.mobile-section-view.active');
+  
+  // Close menu if clicking outside
+  if (menu && menu.classList.contains('show') && 
+      !menu.contains(e.target) && 
+      !btn.contains(e.target)) {
+    toggleMobileMenu();
+  }
+  
+  // Close section if clicking outside
+  if (activeSection && 
+      !activeSection.contains(e.target) && 
+      !menu.contains(e.target)) {
+    closeMobileSection();
+    toggleMobileMenu();
+  }
+});
 </script>
 </body>
 </html>
