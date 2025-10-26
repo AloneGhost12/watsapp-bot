@@ -645,6 +645,38 @@ async function handleTextCommand(from, text) {
     );
     return;
   }
+  // Global model search: allow natural commands like "find <model>" or "search <model>"
+  if (t.startsWith('find ') || t.startsWith('search ')) {
+    const q = text.trim().split(/\s+/).slice(1).join(' ');
+    const matches = searchModelsGlobally(q, 8);
+    if (!matches.length) {
+      await sendTextMessage(from, `No models found for "${q}". Try checking spelling or type 'menu' to browse brands.`);
+      return;
+    }
+    
+    // Store search results in a temporary session for quick selection
+    beginSession(from, "search_results");
+    const s = sessions.get(from);
+    s.data.searchResults = matches;
+    s.step = "select_result";
+    
+    const msg = [
+      `🔍 Found ${matches.length} result(s) for "${q}":`,
+      "",
+      ...matches.map((m, i) => {
+        const samplePrice = m.parts.length ? `${m.parts[0]}: ₹${REPAIRS[m.brand][m.model][m.parts[0]].toLocaleString('en-IN')}` : 'Price on request';
+        return `${i + 1}) *${m.brand} ${m.model}*\n   ${samplePrice}`;
+      }),
+      "",
+      "📋 Reply with a number (1-" + matches.length + ") to:",
+      "   • Get full estimate",
+      "   • Book appointment",
+      "",
+      "Or type 'cancel' to go back"
+    ].join('\n');
+    await sendTextMessage(from, msg);
+    return;
+  }
   if (t === "help") {
     await sendTextMessage(
       from,
@@ -764,6 +796,43 @@ function getIssuePrice(brand, model, issue) {
   return typeof price === "number" ? price : null;
 }
 
+// Search repairs DB for models across all brands. Returns array of { brand, model, samplePrice, parts }
+function searchModelsGlobally(query, limit = 10) {
+  if (!query || !query.trim()) return [];
+  const q = query.trim().toLowerCase();
+  const results = [];
+  for (const brand of Object.keys(REPAIRS)) {
+    for (const model of Object.keys(REPAIRS[brand])) {
+      const modelKey = `${brand} ${model}`.toLowerCase();
+      let score = 0;
+      if (modelKey === q) score = 100;
+      else if (model.toLowerCase() === q || brand.toLowerCase() === q) score = 80;
+      else if (modelKey.includes(q)) score = 60;
+      else if (model.toLowerCase().includes(q) || brand.toLowerCase().includes(q)) score = 40;
+      if (score > 0) {
+        const parts = Object.keys(REPAIRS[brand][model] || {});
+        const samplePrice = parts.length ? REPAIRS[brand][model][parts[0]] : null;
+        results.push({ brand, model, parts, samplePrice, score });
+      }
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, limit);
+}
+
+function briefInfoForMatch(match) {
+  const { brand, model, parts } = match;
+  const lines = [];
+  lines.push(`${brand} ${model}`);
+  if (parts && parts.length) {
+    const summary = parts.slice(0, 5).map(p => `${p}: ₹${REPAIRS[brand][model][p].toLocaleString('en-IN')}`).join(' | ');
+    lines.push(summary);
+  } else {
+    lines.push('No parts listed');
+  }
+  return lines.join('\n');
+}
+
 async function startEstimateFlow(from) {
   reloadRepairs();
   const brands = listBrands();
@@ -824,6 +893,7 @@ async function continueSession(from, text) {
 
   if (s.flow === "estimate") return continueEstimate(from, s, t);
   if (s.flow === "booking") return continueBooking(from, s, t);
+  if (s.flow === "search_results") return handleSearchSelection(from, s, t);
 }
 
 async function continueEstimate(from, s, input) {
@@ -852,21 +922,55 @@ async function continueEstimate(from, s, input) {
         return;
       }
       s.data.brand = brand;
-      s.step = "model";
-      const models = listModels(brand);
-      await sendTextMessage(
-        from,
-        [
-          `Brand: ${brand}`,
-          "Select a model by number:",
-          ...models.map((m, i) => `${i + 1}) ${m}`),
-          "Or type the exact model name.",
-        ].join("\n")
-      );
+        // Prepare paginated model list (store full list in session)
+        s.data.modelList = listModels(brand);
+        s.data.modelPage = 0;
+        s.step = "model";
+        const total = s.data.modelList.length;
+        if (!total) {
+          await sendTextMessage(from, `No models found for ${brand}. You can type the model name directly.`);
+          return;
+        }
+        const start = s.data.modelPage * 10;
+        const pageItems = s.data.modelList.slice(start, start + 10);
+        await sendTextMessage(
+          from,
+          [
+            `Brand: ${brand} (showing ${start + 1}-${Math.min(start + 10, total)} of ${total})`,
+            "Select a model by number:",
+            ...pageItems.map((m, i) => `${start + i + 1}) ${m}`),
+            "Or type the exact model name.",
+            "Type 'more' to see more models."
+          ].join("\n")
+        );
       return;
     }
     case "model": {
-      const models = listModels(s.data.brand);
+      // Support pagination 'more' to view additional models
+      if (input.trim().toLowerCase() === 'more') {
+        if (!s.data.modelList) s.data.modelList = listModels(s.data.brand);
+        s.data.modelPage = (s.data.modelPage || 0) + 1;
+        const total = s.data.modelList.length;
+        const start = s.data.modelPage * 10;
+        if (start >= total) {
+          s.data.modelPage = 0; // wrap around
+          await sendTextMessage(from, "No more models — back to start.");
+        }
+        const pageStart = s.data.modelPage * 10;
+        const pageItems = s.data.modelList.slice(pageStart, pageStart + 10);
+        await sendTextMessage(
+          from,
+          [
+            `Brand: ${s.data.brand} (showing ${pageStart + 1}-${Math.min(pageStart + 10, total)} of ${total})`,
+            ...pageItems.map((m, i) => `${pageStart + i + 1}) ${m}`),
+            "Or type the exact model name.",
+            "Type 'more' to see more models."
+          ].join("\n")
+        );
+        return;
+      }
+
+      const models = s.data.modelList || listModels(s.data.brand);
       const idx = parseInt(input, 10);
       let model = models[idx - 1];
       if (!model) model = input;
@@ -1262,6 +1366,80 @@ async function continueBooking(from, s, input) {
       endSession(from);
       await sendTextMessage(from, "Session ended. Type 'menu' to start again.");
   }
+}
+
+// Handle selection from search results - allows user to pick a model and choose estimate or booking
+async function handleSearchSelection(from, s, input) {
+  const t = input.trim().toLowerCase();
+  
+  if (s.step === "select_result") {
+    const idx = parseInt(input, 10);
+    if (!idx || idx < 1 || idx > (s.data.searchResults?.length || 0)) {
+      await sendTextMessage(from, `Please reply with a number between 1 and ${s.data.searchResults.length}, or type 'cancel'.`);
+      return;
+    }
+    
+    const match = s.data.searchResults[idx - 1];
+    const { brand, model, parts } = match;
+    
+    // Show model details and ask what they want to do
+    const priceList = parts.slice(0, 5).map(p => `   • ${p}: ₹${REPAIRS[brand][model][p].toLocaleString('en-IN')}`).join('\n');
+    
+    await sendTextMessage(
+      from,
+      [
+        `📱 *${brand} ${model}*`,
+        "",
+        "💰 *Available Repairs:*",
+        priceList,
+        parts.length > 5 ? `   ... and ${parts.length - 5} more` : "",
+        "",
+        "What would you like to do?",
+        "1️⃣ Type *'estimate'* - Get detailed repair quote",
+        "2️⃣ Type *'book'* - Schedule appointment",
+        "",
+        "Or type 'cancel' to search again"
+      ].filter(Boolean).join('\n')
+    );
+    
+    // Pre-fill the brand and model, wait for user to choose estimate or book
+    s.data.brand = brand;
+    s.data.model = model;
+    s.step = "choose_action";
+    return;
+  }
+  
+  if (s.step === "choose_action") {
+    if (t === "estimate" || t === "1") {
+      // Switch to estimate flow with pre-filled brand/model
+      s.flow = "estimate";
+      s.step = "issue";
+      const issues = listIssues(s.data.brand, s.data.model);
+      await sendTextMessage(
+        from,
+        [
+          `Model: ${s.data.model}`,
+          "What needs repair?",
+          ...issues.map((m, i) => `${i + 1}) ${m}`),
+          "Reply with the number or issue name.",
+        ].join("\n")
+      );
+      return;
+    }
+    
+    if (t === "book" || t === "2" || t === "appointment") {
+      // Switch to booking flow with pre-filled brand/model
+      s.flow = "booking";
+      s.step = "name";
+      await sendTextMessage(from, "Great! Let's book your appointment.\n\nWhat's your name?");
+      return;
+    }
+    
+    await sendTextMessage(from, "Please type 'estimate' or 'book' (or type 'cancel').");
+    return;
+  }
+  
+  endSession(from);
 }
 
 // --- Save incoming inquiries/messages --------------------------------------
