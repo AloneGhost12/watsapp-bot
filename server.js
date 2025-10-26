@@ -654,9 +654,30 @@ async function continueSession(from, text) {
   if (!s) return;
   s.lastActive = Date.now();
   const t = (text || "").trim();
-  if (t.toLowerCase() === "cancel" || t.toLowerCase() === "reset") {
+  const tLower = t.toLowerCase();
+  
+  // Check for global override commands FIRST
+  if (tLower === "cancel" || tLower === "reset") {
     endSession(from);
     await sendTextMessage(from, "Cancelled. Type 'menu' to start again.");
+    return;
+  }
+  
+  if (tLower === "menu") {
+    endSession(from);
+    await sendMenu(from);
+    return;
+  }
+  
+  if (tLower === "estimate" || tLower === "get estimate") {
+    endSession(from);
+    await startEstimateFlow(from);
+    return;
+  }
+  
+  if (["book", "appointment", "book appointment"].includes(tLower)) {
+    endSession(from);
+    await startBookingFlow(from);
     return;
   }
 
