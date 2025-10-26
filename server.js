@@ -403,10 +403,16 @@ COMMUNICATION STYLE:
   2️⃣ Book appointment
   3️⃣ Get troubleshooting tips"
 
+CONTACT INFORMATION:
+📞 Our Contact Number: **8589838547**
+- Share this when users ask "contact number", "phone number", "how to reach you", "call you", etc.
+- Format: "You can reach us at 📞 **8589838547** - feel free to call anytime! 😊"
+
 IMPORTANT:
 - Always provide estimates even for devices not in our exact database
 - Adjust prices based on brand (Apple/Samsung premium, Xiaomi/Realme budget)
-- After giving info, guide them: "Type 'estimate' for detailed quote or 'book' to schedule! 📅"`;
+- After giving info, guide them: "Type 'estimate' for detailed quote or 'book' to schedule! 📅"
+- When asked for contact details, provide the phone number: 8589838547`;
 
     // Build conversation context
     let contextMessages = conversationHistory.map(msg => 
