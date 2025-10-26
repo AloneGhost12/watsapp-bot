@@ -1564,16 +1564,42 @@ async function continueBooking(from, s, input) {
         store.appointments.push(appt);
         writeJSON(APPTS_FILE, store);
       }
+      
+      // Add estimate range to appointment object for PDF
+      if (s.data.estimateRange && !appt.estimate) {
+        appt.estimateRange = s.data.estimateRange;
+      }
+      
       endSession(from);
+      
+      // Send confirmation message first
       await sendTextMessage(
         from,
         [
-          "✅ Appointment booked!",
+          " Appointment booked!",
           `ID: ${appt.id}`,
           `When: ${appt.date} ${appt.time}`,
-          "We’ll contact you to confirm. Reply 'menu' for more options.",
+          "",
+          " Generating your job sheet...",
         ].join("\n")
       );
+      
+      // Generate and send PDF job sheet
+      try {
+        const pdfPath = await generateJobSheetPDF(appt);
+        await sendDocument(from, pdfPath, `Job Sheet - ${appt.id}`);
+        await sendTextMessage(
+          from,
+          " Job sheet sent! Please save it for your records.\n\nWe'll contact you to confirm. Reply 'menu' for more options."
+        );
+      } catch (pdfError) {
+        console.error('Failed to generate/send job sheet:', pdfError);
+        await sendTextMessage(
+          from,
+          " Your booking is confirmed, but we couldn't send the job sheet. You'll receive it via email or at our center.\n\nReply 'menu' for more options."
+        );
+      }
+      
       return;
     }
     default:
