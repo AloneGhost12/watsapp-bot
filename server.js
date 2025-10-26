@@ -798,6 +798,101 @@ function isValidTime(str) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(str);
 }
 
+// Parse natural language date using AI
+async function parseNaturalDate(input) {
+  if (!GEMINI_API_KEY) return null;
+  
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  try {
+    const prompt = `Today is ${todayStr}. Convert this natural language date/time to YYYY-MM-DD format ONLY. Return ONLY the date in YYYY-MM-DD format, nothing else.
+
+Examples:
+"tomorrow" → ${new Date(today.getTime() + 86400000).toISOString().split('T')[0]}
+"next week" → ${new Date(today.getTime() + 7*86400000).toISOString().split('T')[0]}
+"7th" → 2025-11-07 (if we're in October)
+"next Monday" → (calculate next Monday)
+
+User input: "${input}"
+
+Return ONLY the date in YYYY-MM-DD format:`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 50
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000
+      }
+    );
+
+    const aiText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (aiText && isValidDate(aiText)) {
+      return aiText;
+    }
+    return null;
+  } catch (error) {
+    console.error('Date parsing error:', error.message);
+    return null;
+  }
+}
+
+// Parse natural language time using AI
+async function parseNaturalTime(input) {
+  if (!GEMINI_API_KEY) return null;
+  
+  try {
+    const prompt = `Convert this natural language time to HH:MM 24-hour format ONLY. Return ONLY the time in HH:MM format, nothing else.
+
+Examples:
+"5pm" → 17:00
+"5:30 pm" → 17:30
+"noon" → 12:00
+"midnight" → 00:00
+"9 in the morning" → 09:00
+"half past 3 pm" → 15:30
+
+User input: "${input}"
+
+Return ONLY the time in HH:MM 24-hour format:`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 20
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000
+      }
+    );
+
+    const aiText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (aiText && isValidTime(aiText)) {
+      return aiText;
+    }
+    return null;
+  } catch (error) {
+    console.error('Time parsing error:', error.message);
+    return null;
+  }
+}
+
 async function continueBooking(from, s, input) {
   switch (s.step) {
     case "name": {
@@ -914,22 +1009,42 @@ async function continueBooking(from, s, input) {
       return;
     }
     case "date": {
-      const date = input.trim();
+      let date = input.trim();
+      
+      // First check if it's already in correct format
       if (!isValidDate(date)) {
-        await sendTextMessage(from, "Please use format YYYY-MM-DD (e.g., 2025-10-26).");
-        return;
+        // Try to parse natural language
+        const parsedDate = await parseNaturalDate(input);
+        if (parsedDate) {
+          date = parsedDate;
+          await sendTextMessage(from, `✅ Got it! ${date}`);
+        } else {
+          await sendTextMessage(from, "I didn't understand that date. Please try:\n• YYYY-MM-DD (e.g., 2025-10-26)\n• Or say 'tomorrow', 'next week', '7th', etc.");
+          return;
+        }
       }
+      
       s.data.date = date;
       s.step = "time";
-      await sendTextMessage(from, "What time? (HH:MM, 24-hour, e.g., 15:30)");
+      await sendTextMessage(from, "What time works for you? 🕐\n(e.g., '5pm', '17:00', 'noon', '3:30 pm')");
       return;
     }
     case "time": {
-      const time = input.trim();
+      let time = input.trim();
+      
+      // First check if it's already in correct format
       if (!isValidTime(time)) {
-        await sendTextMessage(from, "Please use 24-hour time like 11:00 or 16:30.");
-        return;
+        // Try to parse natural language
+        const parsedTime = await parseNaturalTime(input);
+        if (parsedTime) {
+          time = parsedTime;
+          await sendTextMessage(from, `✅ Got it! ${time}`);
+        } else {
+          await sendTextMessage(from, "I didn't understand that time. Please try:\n• 24-hour format (e.g., 14:30)\n• Or say '5pm', 'noon', '3:30 pm', etc.");
+          return;
+        }
       }
+      
       s.data.time = time;
       s.step = "confirm";
       await sendTextMessage(
