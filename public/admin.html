@@ -5,89 +5,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Repair Admin</title>
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 16px; }
-    header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-    input, button, select, textarea { padding:8px; font-size:14px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .col { flex:1; min-width:320px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border:1px solid #ddd; padding:6px; font-size:13px; }
-    th { background:#f3f3f3; }
-    .card { border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:16px; }
-    .small { font-size:12px; color:#666; }
-    .success { color: #0a7a0a; }
-    .error { color: #a00; }
+    :root{
+      --bg:#0b1220; --panel:#11182a; --panel2:#0f1627; --accent:#5b8cff; --accent2:#8a5bff; --text:#e6eeff; --muted:#98a2b3;
+      --success:#2ecc71; --danger:#ff5b6e; --warning:#ffc857;
+    }
+    *{ box-sizing: border-box }
+    body{ margin:0; font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Arial; color:var(--text); background:
+      radial-gradient(1200px 600px at -10% -10%, rgba(91,140,255,.12), transparent),
+      radial-gradient(1200px 600px at 110% 10%, rgba(138,91,255,.12), transparent),
+      linear-gradient(180deg, #0b1220, #0b1220 40%, #0a1020 100%)
+    }
+    header{
+      position: sticky; top:0; z-index:10; background: linear-gradient(90deg, rgba(15,22,39,.8), rgba(17,24,42,.8));
+      backdrop-filter: blur(8px); border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+    }
+    h1{ font-size:16px; margin:0; letter-spacing:.2px }
+    .badge{ padding:4px 8px; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent2)); font-size:12px }
+    input,button,select,textarea{ background:#0c1323; color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:8px 10px; font-size:14px }
+    input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--accent) }
+    button{ cursor:pointer; transition: transform .05s ease, background .2s ease; }
+    button:hover{ transform: translateY(-1px); }
+    .btn{ background:linear-gradient(90deg, var(--accent), var(--accent2)); border:none }
+    .btn.secondary{ background:#0c1323; border:1px solid rgba(255,255,255,.08) }
+    .layout{ display:grid; grid-template-columns: 320px 1fr 360px; gap:12px; padding:12px }
+    .panel{ background:linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid rgba(255,255,255,.06); border-radius:14px; overflow:hidden }
+    .panel h3{ margin:0; padding:12px 14px; font-size:14px; border-bottom:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.02) }
+    .chats{ display:flex; flex-direction:column; height: calc(100vh - 80px) }
+    .chat-search{ padding:12px }
+    .chat-list{ overflow:auto; animation: fadein .3s ease }
+    .chat-item{ display:flex; gap:10px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); cursor:pointer; align-items:center; transition: background .2s }
+    .chat-item:hover{ background:rgba(255,255,255,.04) }
+    .chat-item.active{ background:rgba(91,140,255,.12) }
+    .chat-item .avatar{ width:32px; height:32px; border-radius:999px; background:linear-gradient(135deg, var(--accent), var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff }
+    .chat-item .meta{ flex:1 }
+    .chat-item .meta .name{ font-size:14px }
+    .chat-item .meta .last{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+    .chat-item .time{ font-size:11px; color:var(--muted) }
+    .messages{ display:flex; flex-direction:column; height: calc(100vh - 80px); }
+    .msg-feed{ flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; animation: slidein .25s ease }
+    .bubble{ max-width:70%; padding:10px 12px; border-radius:14px; font-size:14px; line-height:1.35; box-shadow: 0 2px 8px rgba(0,0,0,.24); animation: pop .15s ease }
+    .in{ align-self:flex-start; background:#0f1a33; border:1px solid rgba(255,255,255,.06) }
+    .out{ align-self:flex-end; background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff }
+    .msg-meta{ font-size:11px; opacity:.75; margin-top:4px }
+    .composer{ display:flex; gap:8px; padding:12px; border-top:1px solid rgba(255,255,255,.06) }
+    .rightcol{ display:flex; flex-direction:column; height: calc(100vh - 80px) }
+    .card{ padding:12px; border-bottom:1px solid rgba(255,255,255,.06) }
+    table{ width:100%; border-collapse: collapse }
+    th,td{ border-bottom:1px solid rgba(255,255,255,.06); padding:8px; font-size:13px }
+    th{ color:var(--muted); font-weight:500; text-align:left }
+    .small{ font-size:12px; color:var(--muted) }
+    .success{ color: var(--success)} .error{ color: var(--danger)}
+    @keyframes pop{ from{ transform:scale(.98); opacity:.5 } to{ transform:scale(1); opacity:1 } }
+    @keyframes fadein{ from{ opacity:0 } to{ opacity:1 } }
+    @keyframes slidein{ from{ transform:translateY(6px); opacity:.6 } to{ transform:none; opacity:1 } }
   </style>
 </head>
 <body>
   <header>
-    <h2>Repair Admin</h2>
-    <input id="token" type="password" placeholder="Admin token (x-admin-token)" />
-    <button onclick="refreshAll()">Refresh</button>
+    <h1>Repair Admin <span class="badge">Live</span></h1>
+    <input id="token" type="password" placeholder="Admin token" style="margin-left:auto; min-width:260px" />
+    <button class="btn secondary" onclick="refreshAll()">Refresh</button>
   </header>
 
-  <div class="row">
-    <div class="col">
+  <div class="layout">
+    <section class="panel chats">
+      <div class="chat-search"><input id="chatSearch" placeholder="Search by number" oninput="renderChatList()" style="width:100%"/></div>
+      <div id="chatList" class="chat-list"></div>
+    </section>
+
+    <section class="panel messages">
+      <h3 id="chatTitle">Select a chat</h3>
+      <div id="feed" class="msg-feed"></div>
+      <div class="composer">
+        <input id="composeText" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter'){sendCurrent()}" />
+        <button class="btn" onclick="sendCurrent()">Send</button>
+      </div>
+    </section>
+
+    <section class="panel rightcol">
       <div class="card">
-        <h3>Send WhatsApp Reply</h3>
-        <div class="row">
-          <input id="to" placeholder="WhatsApp number (e.g., 91xxxxxxxxxx)" style="min-width:240px" />
-          <input id="msg" placeholder="Message body" style="min-width:320px; flex:1" />
-          <button onclick="sendReply()">Send</button>
+        <h3>Quick Reply</h3>
+        <div class="small">Send a one-off message</div>
+        <div style="display:flex; gap:8px; margin-top:8px">
+          <input id="to" placeholder="91xxxxxxxxxx" style="min-width:180px"/>
+          <input id="msg" placeholder="Message body" style="flex:1"/>
+          <button class="btn" onclick="sendReply()">Send</button>
         </div>
         <div id="sendStatus" class="small"></div>
       </div>
 
       <div class="card">
         <h3>Appointments</h3>
-        <div class="row" style="align-items:center">
-          <label>Status: <select id="status"><option value="">All</option><option>pending</option><option>confirmed</option><option>completed</option><option>cancelled</option></select></label>
-          <button onclick="loadAppointments()">Load</button>
+        <div style="display:flex; gap:8px; align-items:center">
+          <label class="small">Status</label>
+          <select id="status"><option value="">All</option><option>pending</option><option>confirmed</option><option>completed</option><option>cancelled</option></select>
+          <button class="btn secondary" onclick="loadAppointments()">Load</button>
         </div>
-        <table id="apptTable">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Customer</th>
-              <th>Device</th>
-              <th>Issue</th>
-              <th>Estimate</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div style="max-height:40vh; overflow:auto; margin-top:8px">
+          <table id="apptTable">
+            <thead><tr><th>When</th><th>Customer</th><th>Device</th><th>Issue</th><th>Estimate</th><th>Status</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
-    </div>
-
-    <div class="col">
-      <div class="card">
-        <h3>Inquiries</h3>
-        <button onclick="loadInquiries()">Load</button>
-        <table id="inqTable">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>From</th>
-              <th>Text</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
+    </section>
   </div>
 
 <script>
 const base = '';
+let state = { chats: [], selected: null, messages: [] };
 function hdrs(){ return { 'x-admin-token': document.getElementById('token').value, 'Content-Type': 'application/json' }; }
+
+async function loadChats(){
+  const res = await fetch(base + '/admin/chats', { headers: hdrs() });
+  if(!res.ok){ console.error('Failed to load chats'); return; }
+  state.chats = await res.json();
+  renderChatList();
+}
+
+function renderChatList(){
+  const q = (document.getElementById('chatSearch').value||'').trim();
+  const list = document.getElementById('chatList');
+  list.innerHTML = '';
+  (state.chats||[]).filter(c => !q || (c.contact||'').includes(q)).forEach((c, idx) => {
+    const div = document.createElement('div');
+    div.className = 'chat-item' + (state.selected===c.contact? ' active':'');
+    div.onclick = () => selectChat(c.contact);
+    const initials = (c.contact||'').slice(-2);
+    const when = c.lastAt? new Date(c.lastAt).toLocaleTimeString(): '';
+    div.innerHTML = `
+      <div class="avatar">${initials}</div>
+      <div class="meta"><div class="name">${c.contact}</div><div class="last">${(c.lastText||'')}</div></div>
+      <div class="time">${when}</div>`;
+    list.appendChild(div);
+  });
+}
+
+async function selectChat(contact){
+  state.selected = contact; state.messages = [];
+  document.getElementById('chatTitle').textContent = contact;
+  await loadMessages(contact);
+}
+
+async function loadMessages(contact){
+  const res = await fetch(base + '/admin/messages?contact=' + encodeURIComponent(contact), { headers: hdrs() });
+  if(!res.ok){ console.error('Failed to load messages'); return; }
+  state.messages = await res.json();
+  renderMessages();
+}
+
+function renderMessages(){
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  (state.messages||[]).forEach(m => {
+    const div = document.createElement('div');
+    const dir = m.direction || ((m.to && m.to!==undefined)? 'out':'in');
+    div.className = 'bubble ' + (dir==='out'?'out':'in');
+    const ts = m.createdAt || m.ts;
+    const meta = ts? new Date(ts).toLocaleString() : '';
+    div.innerHTML = `<div>${(m.text||'').replaceAll('<','&lt;')}</div><div class="msg-meta">${meta}</div>`;
+    feed.appendChild(div);
+  });
+  feed.scrollTop = feed.scrollHeight;
+}
+
+async function sendCurrent(){
+  const text = document.getElementById('composeText').value.trim();
+  if(!state.selected || !text) return;
+  const ok = await postReply(state.selected, text);
+  if(ok){ document.getElementById('composeText').value=''; await loadMessages(state.selected); await loadChats(); }
+}
+
+async function postReply(to, body){
+  const res = await fetch(base + '/admin/reply', { method:'POST', headers: hdrs(), body: JSON.stringify({to, body}) });
+  return res.ok;
+}
 
 async function loadAppointments(){
   const status = document.getElementById('status').value;
   const url = base + '/admin/appointments' + (status? ('?status=' + encodeURIComponent(status)) : '');
   const res = await fetch(url, { headers: hdrs() });
-  if(!res.ok){ alert('Failed to load appointments'); return; }
+  if(!res.ok){ console.error('Failed to load appointments'); return; }
   const data = await res.json();
   const tbody = document.querySelector('#apptTable tbody');
   tbody.innerHTML = '';
@@ -103,34 +202,16 @@ async function loadAppointments(){
         ${['pending','confirmed','completed','cancelled'].map(s=>`<option ${a.status===s?'selected':''}>${s}</option>`).join('')}
       </select></td>
       <td>
-        <button onclick="updateAppt('${a._id||a.id}', {status:'confirmed'})">Confirm</button>
-        <button onclick="updateAppt('${a._id||a.id}', {status:'completed'})">Done</button>
+        <button class="btn secondary" onclick="updateAppt('${a._id||a.id}', {status:'confirmed'})">Confirm</button>
+        <button class="btn secondary" onclick="updateAppt('${a._id||a.id}', {status:'completed'})">Done</button>
       </td>`;
     tbody.appendChild(tr);
   });
 }
 
-async function loadInquiries(){
-  const res = await fetch(base + '/admin/inquiries', { headers: hdrs() });
-  if(!res.ok){ alert('Failed to load inquiries'); return; }
-  const data = await res.json();
-  const tbody = document.querySelector('#inqTable tbody');
-  tbody.innerHTML='';
-  (data||[]).forEach(r=>{
-    const tr = document.createElement('tr');
-    const ts = r.createdAt || r.ts;
-    tr.innerHTML = `<td>${ts? new Date(ts).toLocaleString(): ''}</td><td>${r.from||''}</td><td>${(r.text||'').replaceAll('<','&lt;')}</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
 async function updateAppt(id, patch){
-  const res = await fetch(base + '/admin/appointments/' + encodeURIComponent(id), {
-    method: 'PATCH',
-    headers: hdrs(),
-    body: JSON.stringify(patch)
-  });
-  if(!res.ok){ alert('Update failed'); return; }
+  const res = await fetch(base + '/admin/appointments/' + encodeURIComponent(id), { method:'PATCH', headers: hdrs(), body: JSON.stringify(patch) });
+  if(!res.ok){ console.error('Update failed'); return; }
   loadAppointments();
 }
 
@@ -140,14 +221,15 @@ async function sendReply(){
   const el = document.getElementById('sendStatus');
   el.textContent = '';
   if(!to||!body){ el.textContent='Enter number and message'; el.className='small error'; return; }
-  const res = await fetch(base + '/admin/reply', {
-    method:'POST', headers: hdrs(), body: JSON.stringify({to, body})
-  });
-  if(res.ok){ el.textContent='Sent'; el.className='small success'; document.getElementById('msg').value=''; }
-  else { const t=await res.text(); el.textContent='Failed: '+t; el.className='small error'; }
+  const ok = await postReply(to, body);
+  if(ok){ el.textContent='Sent'; el.className='small success'; document.getElementById('msg').value=''; if(state.selected===to){ await loadMessages(state.selected); await loadChats(); } }
+  else { el.textContent='Failed'; el.className='small error'; }
 }
 
-function refreshAll(){ loadAppointments(); loadInquiries(); }
+async function refreshAll(){ await loadChats(); await loadAppointments(); if(state.selected){ await loadMessages(state.selected); } }
+
+// Initial load after small delay for token input
+setTimeout(refreshAll, 200);
 </script>
 </body>
 </html>

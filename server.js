@@ -85,9 +85,14 @@ const AppointmentSchema = new mongoose.Schema(
 );
 const InquirySchema = new mongoose.Schema(
   {
+    // Unified chat log schema
+    contact: String, // customer's WA number
+    direction: { type: String, enum: ["in", "out"], required: true },
     from: String,
+    to: String,
     type: String,
     text: String,
+    status: String,
     raw: Object,
   },
   { timestamps: true }
@@ -123,6 +128,8 @@ async function sendTextMessage(to, body) {
       { messaging_product: "whatsapp", to, text: { body } },
       { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
     );
+    // Save outgoing message
+    await saveOutgoing(to, body);
   } catch (err) {
     logGraphError(err, "sendTextMessage");
     throw err;
@@ -623,18 +630,55 @@ async function continueBooking(from, s, input) {
 async function saveInquiry(message) {
   try {
     if (!message) return;
-    const from = message.from;
+    const from = message.from; // customer's number
     const type = message.type;
     const text = type === "text" ? message.text?.body : undefined;
     if (mongoReady && Inquiry) {
-      await Inquiry.create({ from, type, text, raw: message });
+      await Inquiry.create({
+        contact: from,
+        direction: "in",
+        from,
+        to: PHONE_NUMBER_ID,
+        type,
+        text,
+        status: undefined,
+        raw: message,
+      });
     } else {
       // optionally append to a local log file
       const logFile = path.join(DATA_DIR, "inquiries.log");
-      fs.appendFileSync(logFile, JSON.stringify({ ts: new Date().toISOString(), from, type, text }) + "\n");
+      fs.appendFileSync(
+        logFile,
+        JSON.stringify({ ts: new Date().toISOString(), contact: from, direction: "in", from, to: PHONE_NUMBER_ID, type, text }) +
+          "\n"
+      );
     }
   } catch (e) {
     console.error("Failed to save inquiry:", e.message);
+  }
+}
+
+async function saveOutgoing(to, body) {
+  try {
+    if (mongoReady && Inquiry) {
+      await Inquiry.create({
+        contact: to,
+        direction: "out",
+        from: PHONE_NUMBER_ID,
+        to,
+        type: "text",
+        text: body,
+      });
+    } else {
+      const logFile = path.join(DATA_DIR, "inquiries.log");
+      fs.appendFileSync(
+        logFile,
+        JSON.stringify({ ts: new Date().toISOString(), contact: to, direction: "out", from: PHONE_NUMBER_ID, to, type: "text", text: body }) +
+          "\n"
+      );
+    }
+  } catch (e) {
+    console.error("Failed to save outgoing:", e.message);
   }
 }
 
@@ -747,6 +791,89 @@ app.post("/admin/reply", requireAdmin, async (req, res) => {
     return res.json({ ok: true });
   } catch (e) {
     logGraphError(e, "admin.reply");
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Chat list and message history
+app.get("/admin/chats", requireAdmin, async (_req, res) => {
+  try {
+    if (mongoReady && Inquiry) {
+      const rows = await Inquiry.aggregate([
+        { $sort: { createdAt: -1 } },
+        {
+          $group: {
+            _id: "$contact",
+            last: { $first: "$$ROOT" },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            contact: "$_id",
+            lastText: "$last.text",
+            lastAt: "$last.createdAt",
+            lastDir: "$last.direction",
+            lastType: "$last.type",
+            count: 1,
+          },
+        },
+        { $sort: { lastAt: -1 } },
+        { $limit: 200 },
+      ]);
+      return res.json(rows);
+    }
+    // Fallback: parse from log file
+    const logFile = path.join(DATA_DIR, "inquiries.log");
+    if (!fs.existsSync(logFile)) return res.json([]);
+    const lines = fs.readFileSync(logFile, "utf8").trim().split(/\r?\n/).slice(-1000);
+    const items = lines
+      .map((l) => {
+        try {
+          return JSON.parse(l);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    const map = new Map();
+    for (const it of items) {
+      const c = it.contact || it.from;
+      if (!map.has(c)) map.set(c, { contact: c, lastText: it.text, lastAt: it.ts || new Date().toISOString(), lastDir: it.direction || "in", count: 0 });
+      const rec = map.get(c);
+      rec.count += 1;
+      // Keep most recent as last
+      rec.lastText = it.text || rec.lastText;
+    }
+    const arr = Array.from(map.values()).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt)).slice(0, 200);
+    return res.json(arr);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/admin/messages", requireAdmin, async (req, res) => {
+  try {
+    const contact = req.query.contact;
+    if (!contact) return res.status(400).json({ error: "contact is required" });
+    if (mongoReady && Inquiry) {
+      const msgs = await Inquiry.find({ contact }).sort({ createdAt: 1 }).limit(500);
+      return res.json(msgs);
+    }
+    // Fallback
+    const logFile = path.join(DATA_DIR, "inquiries.log");
+    if (!fs.existsSync(logFile)) return res.json([]);
+    const lines = fs.readFileSync(logFile, "utf8").trim().split(/\r?\n/);
+    const msgs = lines
+      .map((l) => {
+        try { return JSON.parse(l); } catch { return null; }
+      })
+      .filter((x) => x && (x.contact === contact || x.from === contact))
+      .sort((a, b) => new Date(a.ts || a.createdAt) - new Date(b.ts || b.createdAt))
+      .slice(-500);
+    return res.json(msgs);
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
