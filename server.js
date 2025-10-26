@@ -904,21 +904,13 @@ async function continueEstimate(from, s, input) {
       let brand = brands[idx - 1];
       if (!brand) brand = capitalize(input);
       if (!REPAIRS[brand]) {
-        // Brand not in database - use AI to help
-        endSession(from);
-        const history = await getConversationHistory(from, 5);
-        const aiResponse = await askGemini(
-          `User wants estimate for ${input} brand device. We don't have that in our database. Our available brands are: ${brands.join(', ')}. Tell them we can still help - ask what device model and issue they have, then provide an estimated price range. Suggest typing 'book' to schedule appointment with our team who can give exact quote.`,
-          history
+        // Brand not in database - still allow user to continue with estimate
+        s.data.brand = input;
+        s.step = "model_custom";
+        await sendTextMessage(
+          from,
+          `� Got it - ${input}!\n\nWhat's the exact model? (e.g., "G8S ThinQ", "V60", "Wing 5G")`
         );
-        if (aiResponse) {
-          await sendTextMessage(from, aiResponse);
-        } else {
-          await sendTextMessage(
-            from,
-            `😊 We don't have ${input} in our pricing database yet, but we can still help!\n\n💬 Please tell me:\n• Your exact model (e.g., "G8s ThinQ")\n• What needs repair\n\nI'll give you an estimated price range! 💰\n\nOr type 'book' to schedule an appointment where our technician can assess it in person! 📅`
-          );
-        }
         return;
       }
       s.data.brand = brand;
@@ -943,6 +935,37 @@ async function continueEstimate(from, s, input) {
             "Type 'more' to see more models."
           ].join("\n")
         );
+      return;
+    }
+    case "model_custom_booking": {
+      // Custom model name for brands not in database
+      s.data.model = input.trim();
+      s.step = "issue_custom_booking";
+      await sendTextMessage(
+        from,
+        `📱 ${s.data.brand} ${s.data.model}\n\nWhat issue are you experiencing? (e.g., "broken screen", "battery problem")`
+      );
+      return;
+    }
+    case "issue_custom_booking": {
+      // Custom issue for non-database brands - get AI estimate
+      s.data.issue = input.trim();
+      
+      // Get AI estimate
+      const history = await getConversationHistory(from, 5);
+      const aiEstimate = await askGemini(
+        `User wants to book repair for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide ONLY a realistic price range in Indian Rupees. Reply with ONLY the range like "₹3,500 - ₹6,000" or "₹2,000 - ₹4,500". Nothing else, just the range.`,
+        history
+      );
+      
+      const priceRange = aiEstimate?.trim() || "₹3,000 - ₹7,000";
+      s.data.estimateRange = priceRange;
+      s.step = "date";
+      
+      await sendTextMessage(
+        from,
+        `📝 ${s.data.brand} ${s.data.model} - ${s.data.issue}\n💰 Estimated cost: ${priceRange}\n(Final price after diagnosis)\n\nWhat date works for you? 📅\n(YYYY-MM-DD, e.g., 2025-10-27, or say "tomorrow", "next week")`
+      );
       return;
     }
     case "model": {
@@ -1174,11 +1197,10 @@ async function continueBooking(from, s, input) {
       if (!REPAIRS[brand]) {
         // Brand not in database - allow booking anyway
         s.data.brand = input;
-        s.data.model = "Unknown";
-        s.step = "issue";
+        s.step = "model_custom_booking";
         await sendTextMessage(
           from,
-          `📝 Got it! ${input} device.\n\nWhat issue are you experiencing? Please describe the problem (e.g., "broken screen", "won't turn on", "battery draining fast")`
+          `� ${input} - got it!\n\nWhat's the exact model? (e.g., "G8S ThinQ")`
         );
         return;
       }
@@ -1193,6 +1215,38 @@ async function continueBooking(from, s, input) {
           ...models.map((m, i) => `${i + 1}) ${m}`),
         ].join("\n")
       );
+      return;
+    }
+    case "model_custom": {
+      // For brands not in database - get model name
+      s.data.model = input.trim();
+      s.step = "issue_custom";
+      await sendTextMessage(
+        from,
+        `📱 ${s.data.brand} ${s.data.model}\n\nWhat's the issue? (e.g., "broken screen", "battery problem", "water damage")`
+      );
+      return;
+    }
+    case "issue_custom": {
+      // For non-database items - use AI to provide estimate
+      s.data.issue = input.trim();
+      const history = await getConversationHistory(from, 5);
+      const aiResponse = await askGemini(
+        `User wants repair estimate for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide a realistic price range in Indian Rupees (₹) based on typical market rates. Be specific with a range like ₹3,500-₹6,000. After giving the price, ask if they want to book an appointment - tell them to reply 'yes' to book or 'no' to cancel.`,
+        history
+      );
+      
+      if (aiResponse) {
+        await sendTextMessage(from, aiResponse);
+        s.step = "offer_book";
+      } else {
+        // Fallback if AI fails
+        await sendTextMessage(
+          from,
+          `📝 Noted: ${s.data.brand} ${s.data.model} - ${s.data.issue}\n\n💰 Estimated repair cost: ₹3,000-₹7,000\n(Final price depends on parts availability and damage assessment)\n\nWould you like to book an appointment? (yes/no)`
+        );
+        s.step = "offer_book";
+      }
       return;
     }
     case "model": {
@@ -1304,7 +1358,7 @@ async function continueBooking(from, s, input) {
           `📱 Phone: ${from}`,
           `🔧 Device: ${s.data.brand} ${s.data.model}`,
           `⚠️ Issue: ${s.data.issue}`,
-          s.data.price ? `💰 Estimate: ₹${s.data.price.toLocaleString("en-IN")}` : "💰 Estimate: Will quote during visit",
+          s.data.price ? `💰 Estimate: ₹${s.data.price.toLocaleString("en-IN")}` : (s.data.estimateRange ? `💰 Estimate: ${s.data.estimateRange}` : "💰 Estimate: Will quote during visit"),
           `📅 Date & Time: ${s.data.date} at ${s.data.time}`,
           "",
           "Reply *'yes'* to confirm or *'no'* to cancel.",
