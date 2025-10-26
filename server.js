@@ -193,11 +193,23 @@ async function sendTextMessage(to, body) {
 // Optional: send a quick reply menu as plain text list
 async function sendMenu(to) {
   const lines = [
-    "Menu:",
-    "1) Get Estimate",
-    "2) Book Appointment",
-    "3) Help",
-    "Tip: type 'estimate' or 'book' to start. Type 'cancel' anytime.",
+    "📋 *Main Menu* - Choose what you need:",
+    "",
+    "1️⃣ *Get Estimate* 💰",
+    "   Get instant repair pricing",
+    "",
+    "2️⃣ *Book Appointment* 📅",
+    "   Schedule your repair visit",
+    "",
+    "3️⃣ *Help & Support* 🆘",
+    "   Learn how to use this bot",
+    "",
+    "💬 *Quick Commands:*",
+    "Type: *estimate* or *book*",
+    "Cancel anytime: *cancel*",
+    "",
+    "✨ Or just ask me anything naturally!",
+    "Example: \"iPhone 13 screen price?\"",
   ];
   await sendTextMessage(to, lines.join("\n"));
 }
@@ -268,16 +280,59 @@ async function askGemini(userMessage, conversationHistory = []) {
   }
   
   try {
-    const systemContext = `You are a helpful assistant for a phone repair shop. 
-We repair phones from multiple brands. Use the listBrands() function to see available brands.
-You can help customers with:
-- Getting repair estimates (guide them to type 'estimate')
-- Booking appointments (guide them to type 'book')
-- General questions about repairs, pricing, and services
-- Device troubleshooting tips
+    const systemContext = `You are an expert electronics repair assistant! 🛠️ You help with ALL electronics - phones 📱, tablets, laptops 💻, TVs 📺, watches ⌚, speakers 🔊, headphones 🎧, cameras 📷, gaming consoles 🎮, and more!
 
-Keep responses short (2-3 sentences), friendly, and helpful.
-Always suggest typing 'estimate' or 'book' when customers want specific services.`;
+YOUR CAPABILITIES:
+✅ Provide repair price estimates for ANY device (even if not in database)
+✅ Troubleshoot problems and suggest DIY fixes
+✅ Recommend whether to repair or replace
+✅ Book appointments for repairs
+✅ Answer questions about all electronics brands
+
+PRICING KNOWLEDGE (use these as reference):
+📱 Phones:
+- Screen replacement: ₹1,500-₹8,000 (budget to premium)
+- Battery replacement: ₹800-₹3,500
+- Charging port: ₹500-₹2,000
+- Back glass: ₹1,000-₹4,000
+- Water damage repair: ₹1,500-₹5,000
+- Camera replacement: ₹1,200-₹6,000
+
+💻 Laptops:
+- Screen replacement: ₹3,000-₹15,000
+- Keyboard replacement: ₹1,500-₹5,000
+- Battery: ₹2,000-₹8,000
+- Hard drive/SSD upgrade: ₹2,500-₹12,000
+- RAM upgrade: ₹1,500-₹6,000
+
+📺 TVs:
+- Screen replacement: ₹8,000-₹40,000
+- Power board: ₹2,000-₹8,000
+- Backlight repair: ₹3,000-₹12,000
+
+⌚ Smartwatches:
+- Screen: ₹1,500-₹6,000
+- Battery: ₹800-₹3,000
+
+🔊 Speakers/Headphones:
+- Driver replacement: ₹500-₹3,000
+- Battery (wireless): ₹600-₹2,500
+
+COMMUNICATION STYLE:
+- Use emojis frequently! 😊✨
+- Be friendly and conversational
+- Give step-by-step guidance with numbered lists
+- Provide price ranges when asked
+- If user seems confused, offer clear options like:
+  "What would you like to do? 🤔
+  1️⃣ Get repair estimate
+  2️⃣ Book appointment
+  3️⃣ Get troubleshooting tips"
+
+IMPORTANT:
+- Always provide estimates even for devices not in our exact database
+- Adjust prices based on brand (Apple/Samsung premium, Xiaomi/Realme budget)
+- After giving info, guide them: "Type 'estimate' for detailed quote or 'book' to schedule! 📅"`;
 
     // Build conversation context
     let contextMessages = conversationHistory.map(msg => 
@@ -295,10 +350,10 @@ Always suggest typing 'estimate' or 'book' when customers want specific services
           parts: [{ text: prompt }]
         }],
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 200,
-          topP: 0.8,
-          topK: 40
+          temperature: 0.8,
+          maxOutputTokens: 400,
+          topP: 0.9,
+          topK: 50
         }
       },
       {
@@ -341,7 +396,7 @@ async function handleTextCommand(from, text) {
   if (t === "hi" || t === "hello") {
     await sendTextMessage(
       from,
-      "Hey! I can help you with phone repair estimates and booking appointments. Type 'menu' to begin."
+      "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
     );
     return;
   }
@@ -349,11 +404,18 @@ async function handleTextCommand(from, text) {
     await sendTextMessage(
       from,
       [
-        "I can do these:",
-        "• estimate — get repair cost by brand/model/issue",
-        "• book — book an appointment",
-        "• menu — show options",
-        "• cancel — stop current flow",
+        "🆘 *How I Can Help You:*",
+        "",
+        "💡 *Quick Commands:*",
+        "📋 *menu* — Show all options",
+        "💰 *estimate* — Get repair cost",
+        "📅 *book* — Schedule appointment",
+        "❌ *cancel* — Stop current action",
+        "",
+        "💬 *Or just chat with me!*",
+        "Ask: \"How much to fix iPhone screen?\" or \"My laptop won't turn on\"",
+        "",
+        "✨ I understand natural language!"
       ].join("\n")
     );
     return;
