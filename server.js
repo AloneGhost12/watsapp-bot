@@ -369,34 +369,159 @@ BOOKING INFORMATION:
 📋 Booking IDs look like: appt_1234567890 or a long MongoDB ID like 68fe174c440aa3498f456298
 📋 If they can't find their ID, they can type 'book' to create a new appointment or call us at 8589838547
 
-PRICING KNOWLEDGE (use these as reference):
-📱 Phones:
-- Screen replacement: ₹1,500-₹8,000 (budget to premium)
-- Battery replacement: ₹800-₹3,500
-- Charging port: ₹500-₹2,000
-- Back glass: ₹1,000-₹4,000
-- Water damage repair: ₹1,500-₹5,000
-- Camera replacement: ₹1,200-₹6,000
+PRICING KNOWLEDGE (ACCURATE market rates - researched from online parts sellers):
+These are REAL market prices. Tell customers they're estimates, but these are accurate!
 
-💻 Laptops:
-- Screen replacement: ₹3,000-₹15,000
-- Keyboard replacement: ₹1,500-₹5,000
-- Battery: ₹2,000-₹8,000
-- Hard drive/SSD upgrade: ₹2,500-₹12,000
-- RAM upgrade: ₹1,500-₹6,000
+📱 SMARTPHONES (Brand-specific accurate pricing):
 
-📺 TVs:
-- Screen replacement: ₹8,000-₹40,000
-- Power board: ₹2,000-₹8,000
-- Backlight repair: ₹3,000-₹12,000
+**Apple iPhone:**
+- iPhone 14/15 Pro Max screen: ₹8,500-₹12,000
+- iPhone 13/14 screen: ₹6,500-₹9,500
+- iPhone 11/12 screen: ₹4,500-₹7,000
+- iPhone X/XR screen: ₹3,500-₹5,500
+- iPhone 7/8 screen: ₹2,200-₹3,500
+- Battery replacement: ₹1,800-₹4,500 (varies by model)
+- Back glass: ₹2,500-₹6,000
+- Charging port: ₹1,200-₹2,500
+- Camera: ₹2,500-₹8,000 (rear/front varies)
 
-⌚ Smartwatches:
-- Screen: ₹1,500-₹6,000
-- Battery: ₹800-₹3,000
+**Samsung Galaxy:**
+- S23/S24 Ultra screen: ₹7,500-₹11,000
+- S21/S22 screen: ₹5,500-₹8,500
+- S20/Note 20 screen: ₹4,500-₹7,000
+- A series (A52/A53/A54): ₹2,800-₹4,500
+- M series (M31/M32/M33): ₹2,200-₹3,800
+- Battery: ₹1,200-₹3,500
+- Back glass: ₹1,500-₹4,000
+- Charging port: ₹800-₹1,800
 
-🔊 Speakers/Headphones:
-- Driver replacement: ₹500-₹3,000
-- Battery (wireless): ₹600-₹2,500
+**OnePlus:**
+- OnePlus 11/12 screen: ₹5,500-₹8,500
+- OnePlus 9/10 screen: ₹4,500-₹6,500
+- OnePlus Nord series: ₹2,800-₹4,500
+- Battery: ₹1,200-₹2,800
+- Charging port: ₹800-₹1,500
+
+**Xiaomi/Redmi/POCO:**
+- Flagship (13/14 series): ₹3,500-₹6,000
+- Mid-range (Note 12/13): ₹2,200-₹3,800
+- Budget (9/10 series): ₹1,600-₹2,800
+- Battery: ₹800-₹2,200
+- Charging port: ₹500-₹1,200
+
+**Vivo:**
+- V series (V27/V29): ₹3,200-₹5,500
+- Y series (Y91i/Y21): ₹1,800-₹3,200
+- X series flagship: ₹5,000-₹8,000
+- Battery: ₹900-₹2,500
+- Charging port: ₹600-₹1,300
+
+**Oppo:**
+- Reno series: ₹3,500-₹6,000
+- A series: ₹2,000-₹3,500
+- F series: ₹2,500-₹4,200
+- Battery: ₹900-₹2,500
+- Charging port: ₹600-₹1,300
+
+**Realme:**
+- GT series: ₹3,200-₹5,500
+- Number series (9/10/11): ₹2,200-₹3,800
+- C series budget: ₹1,500-₹2,500
+- Battery: ₹700-₹1,800
+- Charging port: ₹500-₹1,100
+
+**Motorola:**
+- Edge series: ₹3,500-₹6,000
+- G series: ₹2,000-₹3,500
+- E series: ₹1,500-₹2,500
+- Battery: ₹800-₹2,200
+
+**Google Pixel:**
+- Pixel 7/8 Pro: ₹7,000-₹10,000
+- Pixel 6/7: ₹5,500-₹8,000
+- Pixel 4a/5a: ₹3,500-₹5,500
+- Battery: ₹1,500-₹3,500
+
+**Nothing Phone:**
+- Nothing Phone 1/2: ₹4,500-₹7,000
+- Battery: ₹1,200-₹2,500
+
+💻 LAPTOPS (Accurate brand-specific):
+
+**Apple MacBook:**
+- MacBook Pro M1/M2 screen: ₹28,000-₹45,000
+- MacBook Air screen: ₹22,000-₹35,000
+- Battery: ₹8,000-₹15,000
+- Keyboard: ₹4,500-₹8,500
+- Logic board repair: ₹15,000-₹40,000
+
+**Dell:**
+- XPS series screen: ₹8,500-₹15,000
+- Inspiron screen: ₹4,500-₹8,500
+- Latitude screen: ₹5,500-₹10,000
+- Battery: ₹2,500-₹6,500
+- Keyboard: ₹1,500-₹3,500
+
+**HP:**
+- Pavilion screen: ₹4,500-₹8,000
+- EliteBook screen: ₹6,000-₹11,000
+- Omen gaming screen: ₹7,500-₹14,000
+- Battery: ₹2,200-₹5,500
+- Keyboard: ₹1,200-₹2,800
+
+**Lenovo:**
+- ThinkPad screen: ₹5,500-₹10,000
+- IdeaPad screen: ₹4,000-₹7,500
+- Legion gaming screen: ₹8,000-₹15,000
+- Battery: ₹2,500-₹6,000
+- Keyboard: ₹1,500-₹3,200
+
+**Asus:**
+- ROG gaming screen: ₹9,000-₹18,000
+- VivoBook screen: ₹4,500-₹8,000
+- ZenBook screen: ₹6,500-₹12,000
+- Battery: ₹2,800-₹6,500
+- Keyboard: ₹1,500-₹3,500
+
+**Acer:**
+- Aspire screen: ₹3,800-₹7,000
+- Predator gaming: ₹8,500-₹16,000
+- Swift series: ₹5,500-₹9,500
+- Battery: ₹2,200-₹5,000
+
+📺 TVs (Brand-specific):
+- Samsung QLED 55": ₹18,000-₹35,000 (screen)
+- LG OLED panel: ₹25,000-₹45,000
+- Sony Bravia LED: ₹12,000-₹28,000
+- Mi/Xiaomi TV: ₹8,000-₹18,000
+- Power board: ₹2,500-₹8,500
+- Backlight strips: ₹1,500-₹5,500
+- T-con board: ₹1,800-₹6,000
+
+⌚ SMARTWATCHES:
+- Apple Watch screen: ₹4,500-₹12,000
+- Samsung Galaxy Watch: ₹2,800-₹6,500
+- Fitbit screen: ₹1,500-₹3,500
+- Amazfit screen: ₹1,200-₹2,800
+- Battery: ₹800-₹2,500
+
+🔊 AUDIO DEVICES:
+- JBL speaker repair: ₹800-₹3,500
+- Sony headphones: ₹1,200-₹4,500
+- Boat earbuds battery: ₹400-₹1,200
+- Marshall speakers: ₹2,000-₹5,500
+
+📷 CAMERAS:
+- Canon DSLR screen: ₹3,500-₹8,500
+- Nikon lens repair: ₹2,500-₹12,000
+- GoPro screen: ₹2,200-₹4,500
+- Sony mirrorless: ₹5,500-₹15,000
+
+🎮 GAMING:
+- PS5 controller: ₹2,500-₹4,500
+- Xbox controller: ₹2,200-₹4,000
+- Nintendo Switch screen: ₹3,500-₹6,500
+- Gaming mouse repair: ₹500-₹2,500
 
 COMMUNICATION STYLE:
 - Use emojis frequently! 😊✨

@@ -1,73 +1,435 @@
 {
   "Apple": {
-    "iPhone 11": {
-      "Screen": 9000,
-      "Battery": 3500,
-      "Charging Port": 2500,
-      "Back Glass": 4000,
-      "Camera": 4500
+    "iPhone 15 Pro Max": {
+      "Screen": 11500,
+      "Battery": 4200,
+      "Charging Port": 2800,
+      "Back Glass": 5500,
+      "Camera": 7500
     },
-    "iPhone 12": {
-      "Screen": 12000,
-      "Battery": 4000,
-      "Charging Port": 3000,
-      "Back Glass": 5000,
+    "iPhone 14 Pro": {
+      "Screen": 9800,
+      "Battery": 3800,
+      "Charging Port": 2500,
+      "Back Glass": 4800,
+      "Camera": 6500
+    },
+    "iPhone 13": {
+      "Screen": 7500,
+      "Battery": 3200,
+      "Charging Port": 2200,
+      "Back Glass": 4000,
       "Camera": 5200
     },
+    "iPhone 12": {
+      "Screen": 6800,
+      "Battery": 2800,
+      "Charging Port": 2000,
+      "Back Glass": 3500,
+      "Camera": 4500
+    },
+    "iPhone 11": {
+      "Screen": 5500,
+      "Battery": 2500,
+      "Charging Port": 1800,
+      "Back Glass": 3000,
+      "Camera": 3800
+    },
     "iPhone XR": {
-      "Screen": 8000,
-      "Battery": 3200,
-      "Charging Port": 2400,
-      "Back Glass": 3800,
-      "Camera": 4200
+      "Screen": 4500,
+      "Battery": 2200,
+      "Charging Port": 1500,
+      "Back Glass": 2500,
+      "Camera": 3200
+    },
+    "iPhone X": {
+      "Screen": 4200,
+      "Battery": 2000,
+      "Charging Port": 1400,
+      "Back Glass": 2300,
+      "Camera": 3000
+    },
+    "iPhone 8": {
+      "Screen": 2800,
+      "Battery": 1500,
+      "Charging Port": 1200,
+      "Back Glass": 1800,
+      "Camera": 2200
     }
   },
   "Samsung": {
+    "Galaxy S24 Ultra": {
+      "Screen": 9500,
+      "Battery": 3200,
+      "Charging Port": 1800,
+      "Back Glass": 3800,
+      "Camera": 5500
+    },
+    "Galaxy S23": {
+      "Screen": 7800,
+      "Battery": 2800,
+      "Charging Port": 1600,
+      "Back Glass": 3200,
+      "Camera": 4500
+    },
+    "Galaxy S22": {
+      "Screen": 6500,
+      "Battery": 2500,
+      "Charging Port": 1400,
+      "Back Glass": 2800,
+      "Camera": 3800
+    },
+    "Galaxy S21": {
+      "Screen": 5800,
+      "Battery": 2200,
+      "Charging Port": 1300,
+      "Back Glass": 2500,
+      "Camera": 3500
+    },
     "Galaxy S20": {
-      "Screen": 11000,
-      "Battery": 3800,
-      "Charging Port": 2800,
-      "Back Glass": 4200,
-      "Camera": 4800
+      "Screen": 5200,
+      "Battery": 2000,
+      "Charging Port": 1200,
+      "Back Glass": 2200,
+      "Camera": 3200
+    },
+    "Galaxy A54": {
+      "Screen": 3800,
+      "Battery": 1800,
+      "Charging Port": 1000,
+      "Back Glass": 1800,
+      "Camera": 2500
     },
     "Galaxy A52": {
-      "Screen": 7000,
-      "Battery": 2800,
-      "Charging Port": 2200,
-      "Back Glass": 3000,
-      "Camera": 3500
-    }
-  },
-  "Xiaomi": {
-    "Redmi Note 10": {
-      "Screen": 4500,
-      "Battery": 1800,
-      "Charging Port": 1500,
-      "Back Glass": 2000,
+      "Screen": 3200,
+      "Battery": 1600,
+      "Charging Port": 900,
+      "Back Glass": 1500,
       "Camera": 2200
     },
-    "Mi 11": {
-      "Screen": 8000,
-      "Battery": 3000,
-      "Charging Port": 2200,
-      "Back Glass": 3200,
-      "Camera": 3600
+    "Galaxy M33": {
+      "Screen": 2800,
+      "Battery": 1400,
+      "Charging Port": 800,
+      "Back Glass": 1300,
+      "Camera": 1800
+    },
+    "Galaxy M32": {
+      "Screen": 2500,
+      "Battery": 1300,
+      "Charging Port": 750,
+      "Back Glass": 1200,
+      "Camera": 1600
     }
   },
   "OnePlus": {
-    "OnePlus 8": {
-      "Screen": 9000,
-      "Battery": 3200,
-      "Charging Port": 2500,
-      "Back Glass": 3500,
+    "OnePlus 12": {
+      "Screen": 7500,
+      "Battery": 2500,
+      "Charging Port": 1400,
+      "Back Glass": 3000,
+      "Camera": 4500
+    },
+    "OnePlus 11": {
+      "Screen": 6500,
+      "Battery": 2200,
+      "Charging Port": 1300,
+      "Back Glass": 2600,
+      "Camera": 3800
+    },
+    "OnePlus 10 Pro": {
+      "Screen": 5800,
+      "Battery": 2000,
+      "Charging Port": 1200,
+      "Back Glass": 2400,
+      "Camera": 3500
+    },
+    "OnePlus 9": {
+      "Screen": 5200,
+      "Battery": 1800,
+      "Charging Port": 1100,
+      "Back Glass": 2200,
+      "Camera": 3200
+    },
+    "OnePlus Nord 3": {
+      "Screen": 3800,
+      "Battery": 1600,
+      "Charging Port": 900,
+      "Back Glass": 1800,
+      "Camera": 2500
+    },
+    "OnePlus Nord 2": {
+      "Screen": 3200,
+      "Battery": 1400,
+      "Charging Port": 850,
+      "Back Glass": 1600,
+      "Camera": 2200
+    }
+  },
+  "Xiaomi": {
+    "Xiaomi 14": {
+      "Screen": 5500,
+      "Battery": 2200,
+      "Charging Port": 1200,
+      "Back Glass": 2500,
+      "Camera": 3500
+    },
+    "Xiaomi 13": {
+      "Screen": 4800,
+      "Battery": 2000,
+      "Charging Port": 1100,
+      "Back Glass": 2200,
+      "Camera": 3000
+    },
+    "Redmi Note 13 Pro": {
+      "Screen": 3200,
+      "Battery": 1500,
+      "Charging Port": 850,
+      "Back Glass": 1500,
+      "Camera": 2000
+    },
+    "Redmi Note 12": {
+      "Screen": 2800,
+      "Battery": 1300,
+      "Charging Port": 750,
+      "Back Glass": 1300,
+      "Camera": 1800
+    },
+    "Redmi Note 11": {
+      "Screen": 2400,
+      "Battery": 1200,
+      "Charging Port": 700,
+      "Back Glass": 1200,
+      "Camera": 1600
+    },
+    "Redmi 10": {
+      "Screen": 2000,
+      "Battery": 1000,
+      "Charging Port": 650,
+      "Back Glass": 1000,
+      "Camera": 1400
+    },
+    "POCO X5 Pro": {
+      "Screen": 2800,
+      "Battery": 1400,
+      "Charging Port": 800,
+      "Back Glass": 1400,
+      "Camera": 1900
+    },
+    "POCO M5": {
+      "Screen": 1900,
+      "Battery": 950,
+      "Charging Port": 600,
+      "Back Glass": 950,
+      "Camera": 1300
+    }
+  },
+  "Vivo": {
+    "Vivo X90 Pro": {
+      "Screen": 6500,
+      "Battery": 2200,
+      "Charging Port": 1200,
+      "Back Glass": 2800,
       "Camera": 4000
     },
-    "OnePlus Nord": {
-      "Screen": 6500,
+    "Vivo V29": {
+      "Screen": 4500,
+      "Battery": 1800,
+      "Charging Port": 1000,
+      "Back Glass": 2000,
+      "Camera": 2800
+    },
+    "Vivo V27": {
+      "Screen": 3800,
+      "Battery": 1600,
+      "Charging Port": 900,
+      "Back Glass": 1800,
+      "Camera": 2500
+    },
+    "Vivo Y91i": {
+      "Screen": 2500,
+      "Battery": 1200,
+      "Charging Port": 700,
+      "Back Glass": 1200,
+      "Camera": 1600
+    },
+    "Vivo Y21": {
+      "Screen": 2200,
+      "Battery": 1100,
+      "Charging Port": 650,
+      "Back Glass": 1100,
+      "Camera": 1500
+    },
+    "Vivo Y16": {
+      "Screen": 1900,
+      "Battery": 1000,
+      "Charging Port": 600,
+      "Back Glass": 1000,
+      "Camera": 1400
+    }
+  },
+  "Oppo": {
+    "Oppo Find X6 Pro": {
+      "Screen": 6200,
+      "Battery": 2100,
+      "Charging Port": 1150,
+      "Back Glass": 2700,
+      "Camera": 3800
+    },
+    "Oppo Reno 10 Pro": {
+      "Screen": 4800,
+      "Battery": 1850,
+      "Charging Port": 1000,
+      "Back Glass": 2100,
+      "Camera": 2900
+    },
+    "Oppo Reno 8": {
+      "Screen": 3900,
+      "Battery": 1650,
+      "Charging Port": 900,
+      "Back Glass": 1850,
+      "Camera": 2600
+    },
+    "Oppo A78": {
+      "Screen": 2700,
+      "Battery": 1300,
+      "Charging Port": 750,
+      "Back Glass": 1300,
+      "Camera": 1800
+    },
+    "Oppo A57": {
+      "Screen": 2300,
+      "Battery": 1150,
+      "Charging Port": 680,
+      "Back Glass": 1150,
+      "Camera": 1600
+    },
+    "Oppo F21 Pro": {
+      "Screen": 3200,
+      "Battery": 1450,
+      "Charging Port": 850,
+      "Back Glass": 1550,
+      "Camera": 2200
+    }
+  },
+  "Realme": {
+    "Realme GT 3": {
+      "Screen": 4800,
+      "Battery": 1800,
+      "Charging Port": 1000,
+      "Back Glass": 2100,
+      "Camera": 2900
+    },
+    "Realme 11 Pro": {
+      "Screen": 3500,
+      "Battery": 1550,
+      "Charging Port": 850,
+      "Back Glass": 1650,
+      "Camera": 2300
+    },
+    "Realme 10": {
+      "Screen": 2800,
+      "Battery": 1350,
+      "Charging Port": 750,
+      "Back Glass": 1350,
+      "Camera": 1900
+    },
+    "Realme 9": {
+      "Screen": 2400,
+      "Battery": 1200,
+      "Charging Port": 700,
+      "Back Glass": 1200,
+      "Camera": 1700
+    },
+    "Realme C55": {
+      "Screen": 2000,
+      "Battery": 1000,
+      "Charging Port": 620,
+      "Back Glass": 1000,
+      "Camera": 1450
+    },
+    "Realme C35": {
+      "Screen": 1700,
+      "Battery": 900,
+      "Charging Port": 580,
+      "Back Glass": 900,
+      "Camera": 1300
+    }
+  },
+  "Motorola": {
+    "Motorola Edge 40 Pro": {
+      "Screen": 5200,
+      "Battery": 1950,
+      "Charging Port": 1100,
+      "Back Glass": 2300,
+      "Camera": 3200
+    },
+    "Motorola Edge 30": {
+      "Screen": 4200,
+      "Battery": 1700,
+      "Charging Port": 950,
+      "Back Glass": 1950,
+      "Camera": 2700
+    },
+    "Motorola G73": {
+      "Screen": 2900,
+      "Battery": 1400,
+      "Charging Port": 800,
+      "Back Glass": 1400,
+      "Camera": 1950
+    },
+    "Motorola G52": {
+      "Screen": 2500,
+      "Battery": 1250,
+      "Charging Port": 720,
+      "Back Glass": 1250,
+      "Camera": 1750
+    },
+    "Motorola E13": {
+      "Screen": 1800,
+      "Battery": 950,
+      "Charging Port": 600,
+      "Back Glass": 950,
+      "Camera": 1350
+    }
+  },
+  "Google": {
+    "Pixel 8 Pro": {
+      "Screen": 8500,
+      "Battery": 3000,
+      "Charging Port": 1800,
+      "Back Glass": 3500,
+      "Camera": 5200
+    },
+    "Pixel 7": {
+      "Screen": 6800,
       "Battery": 2500,
-      "Charging Port": 2000,
-      "Back Glass": 2800,
-      "Camera": 3000
+      "Charging Port": 1550,
+      "Back Glass": 2900,
+      "Camera": 4200
+    },
+    "Pixel 6a": {
+      "Screen": 4800,
+      "Battery": 1950,
+      "Charging Port": 1250,
+      "Back Glass": 2200,
+      "Camera": 3200
+    }
+  },
+  "Nothing": {
+    "Nothing Phone 2": {
+      "Screen": 6200,
+      "Battery": 2100,
+      "Charging Port": 1300,
+      "Back Glass": 2700,
+      "Camera": 3800
+    },
+    "Nothing Phone 1": {
+      "Screen": 5200,
+      "Battery": 1850,
+      "Charging Port": 1150,
+      "Back Glass": 2300,
+      "Camera": 3200
     }
   }
 }
