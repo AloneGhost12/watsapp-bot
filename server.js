@@ -418,7 +418,15 @@ IMPORTANT:
 - Always provide estimates even for devices not in our exact database
 - Adjust prices based on brand (Apple/Samsung premium, Xiaomi/Realme budget)
 - After giving info, guide them: "Type 'estimate' for detailed quote or 'book' to schedule! 📅"
-- When asked for contact details, provide the phone number: 8589838547`;
+- When asked for contact details, provide the phone number: 8589838547
+
+BOOKING FLOW CRITICAL RULES:
+⚠️ NEVER pretend to book appointments through AI conversation
+⚠️ NEVER make up fake booking IDs like "appt_1234567890"
+✅ When user wants to book (says "I want to book", "book appointment", "want to book", etc.):
+   → Tell them: "Great! To start the booking process, please type the word 'book' and I'll guide you step by step! 📅"
+✅ Only the actual booking system (triggered by typing "book") creates REAL booking IDs
+✅ Real booking IDs look like: 68fe174c440aa3498f456298 or appt_1730000000000`;
 
     // Build conversation context
     let contextMessages = conversationHistory.map(msg => 
