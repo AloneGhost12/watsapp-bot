@@ -205,6 +205,7 @@ const AppointmentSchema = new mongoose.Schema(
     model: String,
     issue: String,
     estimate: Number,
+    finalAmount: Number,
     date: String,
     time: String,
     status: { type: String, default: "pending" },
@@ -1819,6 +1820,8 @@ async function sendStatusNotification(customerWhatsApp, appointment, newStatus) 
     const issue = appointment.issue || '';
     const dateTime = `${appointment.date || ''} at ${appointment.time || ''}`.trim();
     const estimate = appointment.estimate ? `₹${appointment.estimate.toLocaleString('en-IN')}` : '';
+    // Use finalAmount if available, otherwise fall back to estimate
+    const finalAmount = appointment.finalAmount ? `₹${appointment.finalAmount.toLocaleString('en-IN')}` : estimate;
     
     switch (newStatus) {
       case 'confirmed':
@@ -1847,13 +1850,13 @@ async function sendStatusNotification(customerWhatsApp, appointment, newStatus) 
           ``,
           `Your ${device} repair has been completed successfully! 🎉`,
           ``,
-          `Issue fixed: ${issue}`,
-          estimate ? `Amount: ${estimate}` : '',
+          `🔧 Issue fixed: ${issue}`,
+          finalAmount ? `💰 Final Amount: *${finalAmount}*` : '',
           ``,
           `Thank you for choosing our service!`,
-          `Please rate your experience by replying 1-5 stars.`,
+          `Please rate your experience by replying 1-5 stars ⭐`,
           ``,
-          `We hope to serve you again soon!`
+          `We hope to serve you again soon! 😊`
         ].filter(Boolean).join('\n');
         break;
         
@@ -1906,7 +1909,7 @@ app.get("/admin/appointments", requireAdmin, async (req, res) => {
 
 app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
   const id = req.params.id;
-  const { status, date, time } = req.body || {};
+  const { status, date, time, finalAmount } = req.body || {};
   try {
     let appointment = null;
     let oldStatus = null;
@@ -1916,7 +1919,14 @@ app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
       const oldDoc = await Appointment.findById(id);
       if (oldDoc) oldStatus = oldDoc.status;
       
-      const doc = await Appointment.findByIdAndUpdate(id, { $set: { status, date, time } }, { new: true });
+      // Prepare update object
+      const updateData = {};
+      if (status !== undefined) updateData.status = status;
+      if (date !== undefined) updateData.date = date;
+      if (time !== undefined) updateData.time = time;
+      if (finalAmount !== undefined) updateData.finalAmount = finalAmount;
+      
+      const doc = await Appointment.findByIdAndUpdate(id, { $set: updateData }, { new: true });
       appointment = doc;
       
       // Send notification if status changed
@@ -1937,7 +1947,8 @@ app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
       ...store.appointments[idx], 
       status: status ?? store.appointments[idx].status, 
       date: date ?? store.appointments[idx].date, 
-      time: time ?? store.appointments[idx].time 
+      time: time ?? store.appointments[idx].time,
+      finalAmount: finalAmount ?? store.appointments[idx].finalAmount
     };
     appointment = store.appointments[idx];
     writeJSON(APPTS_FILE, store);

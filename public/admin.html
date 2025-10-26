@@ -910,6 +910,12 @@
       to{ transform: translateX(400px); opacity:0; }
     }
     
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    
     /* Empty States */
     .empty-state{
       display:flex; flex-direction:column; align-items:center;
@@ -2059,21 +2065,24 @@ function confirmStatusChange(id, newStatus, appointmentData) {
       title: 'Confirm Appointment',
       subtitle: 'Are you sure you want to confirm this appointment?',
       btnClass: 'success',
-      btnText: 'Confirm Appointment'
+      btnText: 'Confirm Appointment',
+      showAmountInput: false
     },
     'completed': {
-      icon: '✓',
+      icon: '✅',
       title: 'Complete Appointment',
-      subtitle: 'Mark this appointment as completed?',
+      subtitle: 'Enter the final repair cost and mark as completed',
       btnClass: 'success',
-      btnText: 'Mark as Completed'
+      btnText: 'Complete & Send Invoice',
+      showAmountInput: true
     },
     'cancelled': {
       icon: '✗',
       title: 'Cancel Appointment',
       subtitle: 'Are you sure you want to cancel this appointment?',
       btnClass: 'danger',
-      btnText: 'Cancel Appointment'
+      btnText: 'Cancel Appointment',
+      showAmountInput: false
     }
   };
   
@@ -2111,6 +2120,16 @@ function confirmStatusChange(id, newStatus, appointmentData) {
               <span class="confirm-detail-value">${appt.date || 'N/A'} ${appt.time || ''}</span>
             </div>
             <div class="confirm-detail-row">
+              <span class="confirm-detail-label">Estimated Cost:</span>
+              <span class="confirm-detail-value">${appt.estimate != null ? '₹'+appt.estimate.toLocaleString('en-IN') : 'N/A'}</span>
+            </div>
+            ${config.showAmountInput ? `
+              <div class="confirm-detail-row" style="border: 2px solid var(--accent); border-radius: 8px; padding: 12px; background: rgba(99,102,241,0.05); margin-top: 12px;">
+                <span class="confirm-detail-label" style="font-weight: 600; color: var(--text);">💰 Final Amount (₹):</span>
+                <input type="number" id="finalAmount" class="final-amount-input" placeholder="Enter actual cost" value="${appt.estimate || ''}" style="background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 1rem; font-weight: 600; width: 150px; text-align: right;" min="0" step="1" />
+              </div>
+            ` : ''}
+            <div class="confirm-detail-row">
               <span class="confirm-detail-label">Current Status:</span>
               <span class="confirm-detail-value">${appt.status || 'pending'}</span>
             </div>
@@ -2147,6 +2166,22 @@ function closeConfirmModal() {
 }
 
 async function executeStatusChange(id, newStatus) {
+  // Get final amount if completing
+  let finalAmount = null;
+  if (newStatus === 'completed') {
+    const amountInput = document.getElementById('finalAmount');
+    if (amountInput) {
+      finalAmount = parseFloat(amountInput.value);
+      if (isNaN(finalAmount) || finalAmount < 0) {
+        showToast('Please enter a valid amount', 'error');
+        // Shake the input to draw attention
+        amountInput.style.animation = 'shake 0.5s';
+        setTimeout(() => amountInput.style.animation = '', 500);
+        return;
+      }
+    }
+  }
+  
   // Close modal
   closeConfirmModal();
   
@@ -2174,12 +2209,18 @@ async function executeStatusChange(id, newStatus) {
   // Wait for animation
   await new Promise(resolve => setTimeout(resolve, 300));
   
+  // Prepare update payload
+  const payload = { status: newStatus };
+  if (finalAmount !== null) {
+    payload.finalAmount = finalAmount;
+  }
+  
   // Update appointment
   try {
     const res = await fetch((base||'') + '/admin/appointments/' + encodeURIComponent(id), { 
       method:'PATCH', 
       headers: hdrs(), 
-      body: JSON.stringify({status: newStatus}) 
+      body: JSON.stringify(payload) 
     });
     
     if(!res.ok){ 
@@ -2192,7 +2233,10 @@ async function executeStatusChange(id, newStatus) {
       return;
     }
     
-    showToast(`Appointment ${newStatus} successfully`, 'success');
+    const successMsg = finalAmount !== null 
+      ? `Appointment completed with final cost: ₹${finalAmount.toLocaleString('en-IN')}` 
+      : `Appointment ${newStatus} successfully`;
+    showToast(successMsg, 'success');
     
     // Remove all buttons after successful update
     setTimeout(() => {
