@@ -937,35 +937,36 @@ async function continueEstimate(from, s, input) {
         );
       return;
     }
-    case "model_custom_booking": {
-      // Custom model name for brands not in database
+    case "model_custom": {
+      // For brands not in database - get model name
       s.data.model = input.trim();
-      s.step = "issue_custom_booking";
+      s.step = "issue_custom";
       await sendTextMessage(
         from,
-        `📱 ${s.data.brand} ${s.data.model}\n\nWhat issue are you experiencing? (e.g., "broken screen", "battery problem")`
+        `📱 ${s.data.brand} ${s.data.model}\n\nWhat's the issue? (e.g., "broken screen", "battery problem", "water damage")`
       );
       return;
     }
-    case "issue_custom_booking": {
-      // Custom issue for non-database brands - get AI estimate
+    case "issue_custom": {
+      // For non-database items - use AI to provide estimate
       s.data.issue = input.trim();
-      
-      // Get AI estimate
       const history = await getConversationHistory(from, 5);
-      const aiEstimate = await askGemini(
-        `User wants to book repair for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide ONLY a realistic price range in Indian Rupees. Reply with ONLY the range like "₹3,500 - ₹6,000" or "₹2,000 - ₹4,500". Nothing else, just the range.`,
+      const aiResponse = await askGemini(
+        `User wants repair estimate for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide a realistic price range in Indian Rupees (₹) based on typical market rates. Be specific with a range like ₹3,500-₹6,000. After giving the price, ask if they want to book an appointment - tell them to reply 'yes' to book or 'no' to cancel.`,
         history
       );
       
-      const priceRange = aiEstimate?.trim() || "₹3,000 - ₹7,000";
-      s.data.estimateRange = priceRange;
-      s.step = "date";
-      
-      await sendTextMessage(
-        from,
-        `📝 ${s.data.brand} ${s.data.model} - ${s.data.issue}\n💰 Estimated cost: ${priceRange}\n(Final price after diagnosis)\n\nWhat date works for you? 📅\n(YYYY-MM-DD, e.g., 2025-10-27, or say "tomorrow", "next week")`
-      );
+      if (aiResponse) {
+        await sendTextMessage(from, aiResponse);
+        s.step = "offer_book";
+      } else {
+        // Fallback if AI fails
+        await sendTextMessage(
+          from,
+          `📝 Noted: ${s.data.brand} ${s.data.model} - ${s.data.issue}\n\n💰 Estimated repair cost: ₹3,000-₹7,000\n(Final price depends on parts availability and damage assessment)\n\nWould you like to book an appointment? (yes/no)`
+        );
+        s.step = "offer_book";
+      }
       return;
     }
     case "model": {
@@ -1217,36 +1218,35 @@ async function continueBooking(from, s, input) {
       );
       return;
     }
-    case "model_custom": {
-      // For brands not in database - get model name
+    case "model_custom_booking": {
+      // Custom model name for brands not in database - BOOKING flow
       s.data.model = input.trim();
-      s.step = "issue_custom";
+      s.step = "issue_custom_booking";
       await sendTextMessage(
         from,
-        `📱 ${s.data.brand} ${s.data.model}\n\nWhat's the issue? (e.g., "broken screen", "battery problem", "water damage")`
+        `📱 ${s.data.brand} ${s.data.model}\n\nWhat issue are you experiencing? (e.g., "broken screen", "battery problem")`
       );
       return;
     }
-    case "issue_custom": {
-      // For non-database items - use AI to provide estimate
+    case "issue_custom_booking": {
+      // Custom issue for non-database brands - BOOKING flow, get AI estimate
       s.data.issue = input.trim();
+      
+      // Get AI estimate
       const history = await getConversationHistory(from, 5);
-      const aiResponse = await askGemini(
-        `User wants repair estimate for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide a realistic price range in Indian Rupees (₹) based on typical market rates. Be specific with a range like ₹3,500-₹6,000. After giving the price, ask if they want to book an appointment - tell them to reply 'yes' to book or 'no' to cancel.`,
+      const aiEstimate = await askGemini(
+        `User wants to book repair for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide ONLY a realistic price range in Indian Rupees. Reply with ONLY the range like "₹3,500 - ₹6,000" or "₹2,000 - ₹4,500". Nothing else, just the range.`,
         history
       );
       
-      if (aiResponse) {
-        await sendTextMessage(from, aiResponse);
-        s.step = "offer_book";
-      } else {
-        // Fallback if AI fails
-        await sendTextMessage(
-          from,
-          `📝 Noted: ${s.data.brand} ${s.data.model} - ${s.data.issue}\n\n💰 Estimated repair cost: ₹3,000-₹7,000\n(Final price depends on parts availability and damage assessment)\n\nWould you like to book an appointment? (yes/no)`
-        );
-        s.step = "offer_book";
-      }
+      const priceRange = aiEstimate?.trim() || "₹3,000 - ₹7,000";
+      s.data.estimateRange = priceRange;
+      s.step = "date";
+      
+      await sendTextMessage(
+        from,
+        `📝 ${s.data.brand} ${s.data.model} - ${s.data.issue}\n💰 Estimated cost: ${priceRange}\n(Final price after diagnosis)\n\nWhat date works for you? 📅\n(YYYY-MM-DD, e.g., 2025-10-27, or say "tomorrow", "next week")`
+      );
       return;
     }
     case "model": {
