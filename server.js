@@ -5,6 +5,7 @@ import axios from "axios";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import mongoose from "mongoose";
 
 const app = express();
 
@@ -20,6 +21,8 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const APP_SECRET = process.env.APP_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
 const PORT = process.env.PORT || 10000;
 
@@ -63,6 +66,50 @@ let REPAIRS = readJSON(REPAIRS_FILE, {});
 function reloadRepairs() {
   REPAIRS = readJSON(REPAIRS_FILE, REPAIRS || {});
 }
+
+// --- MongoDB setup ----------------------------------------------------------
+let mongoReady = false;
+const AppointmentSchema = new mongoose.Schema(
+  {
+    customerWhatsApp: String,
+    name: String,
+    brand: String,
+    model: String,
+    issue: String,
+    estimate: Number,
+    date: String,
+    time: String,
+    status: { type: String, default: "pending" },
+  },
+  { timestamps: true }
+);
+const InquirySchema = new mongoose.Schema(
+  {
+    from: String,
+    type: String,
+    text: String,
+    raw: Object,
+  },
+  { timestamps: true }
+);
+
+let Appointment;
+let Inquiry;
+(async () => {
+  try {
+    if (MONGO_URI) {
+      await mongoose.connect(MONGO_URI, { dbName: process.env.MONGO_DB || undefined });
+      Appointment = mongoose.models.Appointment || mongoose.model("Appointment", AppointmentSchema);
+      Inquiry = mongoose.models.Inquiry || mongoose.model("Inquiry", InquirySchema);
+      mongoReady = true;
+      console.log("Connected to MongoDB");
+    } else {
+      console.warn("MONGO_URI not set — using JSON file storage for appointments/inquiries.");
+    }
+  } catch (e) {
+    console.error("MongoDB connection error:", e.message);
+  }
+})();
 
 async function sendTextMessage(to, body) {
   if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
@@ -522,8 +569,7 @@ async function continueBooking(from, s, input) {
         await sendTextMessage(from, "Okay, I’ve cancelled the booking.");
         return;
       }
-      // Save appointment
-      const store = readJSON(APPTS_FILE, { appointments: [] });
+      // Save appointment (Mongo if available, else JSON)
       const appt = {
         id: "appt_" + Date.now(),
         createdAt: new Date().toISOString(),
@@ -537,8 +583,24 @@ async function continueBooking(from, s, input) {
         time: s.data.time,
         status: "pending",
       };
-      store.appointments.push(appt);
-      writeJSON(APPTS_FILE, store);
+      if (mongoReady && Appointment) {
+        const saved = await Appointment.create({
+          customerWhatsApp: appt.customerWhatsApp,
+          name: appt.name,
+          brand: appt.brand,
+          model: appt.model,
+          issue: appt.issue,
+          estimate: appt.estimate,
+          date: appt.date,
+          time: appt.time,
+          status: appt.status,
+        });
+        appt.id = String(saved._id);
+      } else {
+        const store = readJSON(APPTS_FILE, { appointments: [] });
+        store.appointments.push(appt);
+        writeJSON(APPTS_FILE, store);
+      }
       endSession(from);
       await sendTextMessage(
         from,
@@ -557,6 +619,25 @@ async function continueBooking(from, s, input) {
   }
 }
 
+// --- Save incoming inquiries/messages --------------------------------------
+async function saveInquiry(message) {
+  try {
+    if (!message) return;
+    const from = message.from;
+    const type = message.type;
+    const text = type === "text" ? message.text?.body : undefined;
+    if (mongoReady && Inquiry) {
+      await Inquiry.create({ from, type, text, raw: message });
+    } else {
+      // optionally append to a local log file
+      const logFile = path.join(DATA_DIR, "inquiries.log");
+      fs.appendFileSync(logFile, JSON.stringify({ ts: new Date().toISOString(), from, type, text }) + "\n");
+    }
+  } catch (e) {
+    console.error("Failed to save inquiry:", e.message);
+  }
+}
+
 app.post("/webhook", async (req, res) => {
   if (!isValidSignature(req)) {
     console.warn("Invalid signature on webhook request");
@@ -570,6 +651,8 @@ app.post("/webhook", async (req, res) => {
       const from = message.from;
       const type = message.type;
       console.log("Incoming message", { from, type });
+      // Save inquiry
+      await saveInquiry(message);
       if (type === "text") {
         const text = message.text?.body || "";
         await handleTextCommand(from, text);
@@ -592,6 +675,89 @@ app.post("/webhook", async (req, res) => {
     logGraphError(error, "webhook");
   }
   return res.sendStatus(200);
+});
+
+// --- Simple admin API and UI -----------------------------------------------
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) return res.status(403).json({ error: "ADMIN_TOKEN not configured" });
+  const token = req.get("x-admin-token") || req.query.admin_token;
+  if (token !== ADMIN_TOKEN) return res.status(401).json({ error: "Unauthorized" });
+  next();
+}
+
+app.get("/admin/appointments", requireAdmin, async (req, res) => {
+  const status = req.query.status;
+  try {
+    if (mongoReady && Appointment) {
+      const q = status ? { status } : {};
+      const rows = await Appointment.find(q).sort({ createdAt: -1 }).limit(200);
+      return res.json(rows);
+    }
+    const store = readJSON(APPTS_FILE, { appointments: [] });
+    const rows = status ? store.appointments.filter((a) => a.status === status) : store.appointments;
+    return res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.patch("/admin/appointments/:id", requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const { status, date, time } = req.body || {};
+  try {
+    if (mongoReady && Appointment) {
+      const doc = await Appointment.findByIdAndUpdate(id, { $set: { status, date, time } }, { new: true });
+      return res.json(doc);
+    }
+    const store = readJSON(APPTS_FILE, { appointments: [] });
+    const idx = store.appointments.findIndex((a) => String(a.id) === String(id));
+    if (idx === -1) return res.status(404).json({ error: "Not found" });
+    store.appointments[idx] = { ...store.appointments[idx], status: status ?? store.appointments[idx].status, date: date ?? store.appointments[idx].date, time: time ?? store.appointments[idx].time };
+    writeJSON(APPTS_FILE, store);
+    return res.json(store.appointments[idx]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/admin/inquiries", requireAdmin, async (_req, res) => {
+  try {
+    if (mongoReady && Inquiry) {
+      const rows = await Inquiry.find().sort({ createdAt: -1 }).limit(200);
+      return res.json(rows);
+    }
+    // if no DB, read recent from log file
+    const logFile = path.join(DATA_DIR, "inquiries.log");
+    if (!fs.existsSync(logFile)) return res.json([]);
+    const lines = fs.readFileSync(logFile, "utf8").trim().split(/\r?\n/).slice(-200);
+    const rows = lines.map((l) => {
+      try { return JSON.parse(l); } catch { return null; }
+    }).filter(Boolean);
+    return res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/admin/reply", requireAdmin, async (req, res) => {
+  try {
+    const { to, body } = req.body || {};
+    if (!to || !body) return res.status(400).json({ error: "to and body are required" });
+    await sendTextMessage(to, body);
+    return res.json({ ok: true });
+  } catch (e) {
+    logGraphError(e, "admin.reply");
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Serve minimal admin UI
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use("/admin/static", express.static(path.join(__dirname, "public")));
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
 app.listen(PORT, () => {

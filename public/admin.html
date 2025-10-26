@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repair Admin</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; }
+    header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+    input, button, select, textarea { padding:8px; font-size:14px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .col { flex:1; min-width:320px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border:1px solid #ddd; padding:6px; font-size:13px; }
+    th { background:#f3f3f3; }
+    .card { border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:16px; }
+    .small { font-size:12px; color:#666; }
+    .success { color: #0a7a0a; }
+    .error { color: #a00; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Repair Admin</h2>
+    <input id="token" type="password" placeholder="Admin token (x-admin-token)" />
+    <button onclick="refreshAll()">Refresh</button>
+  </header>
+
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <h3>Send WhatsApp Reply</h3>
+        <div class="row">
+          <input id="to" placeholder="WhatsApp number (e.g., 91xxxxxxxxxx)" style="min-width:240px" />
+          <input id="msg" placeholder="Message body" style="min-width:320px; flex:1" />
+          <button onclick="sendReply()">Send</button>
+        </div>
+        <div id="sendStatus" class="small"></div>
+      </div>
+
+      <div class="card">
+        <h3>Appointments</h3>
+        <div class="row" style="align-items:center">
+          <label>Status: <select id="status"><option value="">All</option><option>pending</option><option>confirmed</option><option>completed</option><option>cancelled</option></select></label>
+          <button onclick="loadAppointments()">Load</button>
+        </div>
+        <table id="apptTable">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Customer</th>
+              <th>Device</th>
+              <th>Issue</th>
+              <th>Estimate</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h3>Inquiries</h3>
+        <button onclick="loadInquiries()">Load</button>
+        <table id="inqTable">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>From</th>
+              <th>Text</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+const base = '';
+function hdrs(){ return { 'x-admin-token': document.getElementById('token').value, 'Content-Type': 'application/json' }; }
+
+async function loadAppointments(){
+  const status = document.getElementById('status').value;
+  const url = base + '/admin/appointments' + (status? ('?status=' + encodeURIComponent(status)) : '');
+  const res = await fetch(url, { headers: hdrs() });
+  if(!res.ok){ alert('Failed to load appointments'); return; }
+  const data = await res.json();
+  const tbody = document.querySelector('#apptTable tbody');
+  tbody.innerHTML = '';
+  (data||[]).forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${(a.date||'')} ${(a.time||'')}</td>
+      <td>${a.name||''}<div class="small">${a.customerWhatsApp||''}</div></td>
+      <td>${(a.brand||'') + ' ' + (a.model||'')}</td>
+      <td>${a.issue||''}</td>
+      <td>${a.estimate!=null? ('₹'+a.estimate.toLocaleString('en-IN')):''}</td>
+      <td><select onchange="updateAppt('${a._id||a.id}', {status:this.value})">
+        ${['pending','confirmed','completed','cancelled'].map(s=>`<option ${a.status===s?'selected':''}>${s}</option>`).join('')}
+      </select></td>
+      <td>
+        <button onclick="updateAppt('${a._id||a.id}', {status:'confirmed'})">Confirm</button>
+        <button onclick="updateAppt('${a._id||a.id}', {status:'completed'})">Done</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadInquiries(){
+  const res = await fetch(base + '/admin/inquiries', { headers: hdrs() });
+  if(!res.ok){ alert('Failed to load inquiries'); return; }
+  const data = await res.json();
+  const tbody = document.querySelector('#inqTable tbody');
+  tbody.innerHTML='';
+  (data||[]).forEach(r=>{
+    const tr = document.createElement('tr');
+    const ts = r.createdAt || r.ts;
+    tr.innerHTML = `<td>${ts? new Date(ts).toLocaleString(): ''}</td><td>${r.from||''}</td><td>${(r.text||'').replaceAll('<','&lt;')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function updateAppt(id, patch){
+  const res = await fetch(base + '/admin/appointments/' + encodeURIComponent(id), {
+    method: 'PATCH',
+    headers: hdrs(),
+    body: JSON.stringify(patch)
+  });
+  if(!res.ok){ alert('Update failed'); return; }
+  loadAppointments();
+}
+
+async function sendReply(){
+  const to = document.getElementById('to').value.trim();
+  const body = document.getElementById('msg').value.trim();
+  const el = document.getElementById('sendStatus');
+  el.textContent = '';
+  if(!to||!body){ el.textContent='Enter number and message'; el.className='small error'; return; }
+  const res = await fetch(base + '/admin/reply', {
+    method:'POST', headers: hdrs(), body: JSON.stringify({to, body})
+  });
+  if(res.ok){ el.textContent='Sent'; el.className='small success'; document.getElementById('msg').value=''; }
+  else { const t=await res.text(); el.textContent='Failed: '+t; el.className='small error'; }
+}
+
+function refreshAll(){ loadAppointments(); loadInquiries(); }
+</script>
+</body>
+</html>
