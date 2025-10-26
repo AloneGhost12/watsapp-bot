@@ -69,11 +69,16 @@ async function sendTextMessage(to, body) {
     throw new Error("Missing WhatsApp credentials");
   }
   const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
-  await axios.post(
-    url,
-    { messaging_product: "whatsapp", to, text: { body } },
-    { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
-  );
+  try {
+    await axios.post(
+      url,
+      { messaging_product: "whatsapp", to, text: { body } },
+      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+    );
+  } catch (err) {
+    logGraphError(err, "sendTextMessage");
+    throw err;
+  }
 }
 
 // Optional: send a quick reply menu as plain text list
@@ -120,6 +125,19 @@ function isValidSignature(req) {
     console.error("Signature verification error:", e.message);
     return false;
   }
+}
+
+function logGraphError(error, context) {
+  const tag = context ? `[${context}] ` : "";
+  const data = error?.response?.data?.error || error?.response?.data || error?.message || error;
+  const code = data?.code;
+  const subcode = data?.error_subcode;
+  if (code === 190) {
+    console.error(
+      `${tag}OAuth 190 (token issue). ${subcode === 463 ? "Token expired" : "Invalid token"}. Update ACCESS_TOKEN and restart.`
+    );
+  }
+  console.error(`${tag}Graph API error:`, JSON.stringify(data, null, 2));
 }
 
 async function handleTextCommand(from, text) {
@@ -570,8 +588,7 @@ app.post("/webhook", async (req, res) => {
       });
     }
   } catch (error) {
-    const errorData = error.response ? error.response.data : error.message;
-    console.error("Error processing message:", JSON.stringify(errorData, null, 2));
+    logGraphError(error, "webhook");
   }
   return res.sendStatus(200);
 });
