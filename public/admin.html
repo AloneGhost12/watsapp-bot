@@ -124,6 +124,124 @@
       justify-content:center; padding:0; border-radius:10px;
     }
     
+    /* Download Popup */
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .popup-content {
+      background: var(--panel);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      width: 90%;
+      max-width: 520px;
+      animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .popup-header h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    
+    .popup-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 28px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    
+    .popup-close:hover {
+      background: var(--panel2);
+      color: var(--text);
+    }
+    
+    .popup-body {
+      padding: 24px;
+    }
+    
+    .download-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .download-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    
+    .download-btn:hover {
+      background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1));
+      border-color: var(--accent);
+      transform: translateX(4px);
+    }
+    
+    .download-icon {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+    
+    .download-info {
+      flex: 1;
+    }
+    
+    .download-title {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    
+    .download-desc {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+    
     /* Layout */
     .layout{ 
       display:grid; 
@@ -1026,9 +1144,59 @@
         <button class="btn" onclick="refreshAll()">
           <span>⟳</span> Refresh
         </button>
+        <button class="btn secondary" onclick="showDownloadPopup()">
+          <span>⬇</span> Export
+        </button>
       </div>
     </div>
   </header>
+
+  <!-- Download Popup -->
+  <div id="downloadPopup" class="popup-overlay" style="display:none;">
+    <div class="popup-content">
+      <div class="popup-header">
+        <h3>📥 Export Data</h3>
+        <button class="popup-close" onclick="closeDownloadPopup()">×</button>
+      </div>
+      <div class="popup-body">
+        <p style="margin-bottom:20px; color:var(--text-secondary);">Choose what data you want to download:</p>
+        
+        <div class="download-options">
+          <button class="download-btn" onclick="downloadChats()">
+            <span class="download-icon">💬</span>
+            <div class="download-info">
+              <div class="download-title">All Conversations</div>
+              <div class="download-desc">Export all chat messages as JSON</div>
+            </div>
+          </button>
+          
+          <button class="download-btn" onclick="downloadAppointments()">
+            <span class="download-icon">📅</span>
+            <div class="download-info">
+              <div class="download-title">Appointments</div>
+              <div class="download-desc">Export all appointments as JSON</div>
+            </div>
+          </button>
+          
+          <button class="download-btn" onclick="downloadAppointmentsCSV()">
+            <span class="download-icon">📊</span>
+            <div class="download-info">
+              <div class="download-title">Appointments (CSV)</div>
+              <div class="download-desc">Excel-compatible spreadsheet</div>
+            </div>
+          </button>
+          
+          <button class="download-btn" onclick="downloadAllData()">
+            <span class="download-icon">📦</span>
+            <div class="download-info">
+              <div class="download-title">Complete Backup</div>
+              <div class="download-desc">Download everything (JSON)</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="layout">
     <!-- Chat List Panel -->
@@ -1788,6 +1956,172 @@ async function refreshAll(silent = false){
   if (!silent) {
     showToast('Data refreshed successfully', 'success');
   }
+}
+
+// Download functions
+function showDownloadPopup() {
+  document.getElementById('downloadPopup').style.display = 'flex';
+}
+
+function closeDownloadPopup() {
+  document.getElementById('downloadPopup').style.display = 'none';
+}
+
+async function downloadChats() {
+  try {
+    showToast('Preparing chat data...', 'info');
+    
+    const chats = await fetchAPI('/admin/chats');
+    const allMessages = [];
+    
+    // Fetch messages for each chat
+    for (const chat of chats) {
+      const messages = await fetchAPI(`/admin/messages/${encodeURIComponent(chat.contact)}`);
+      allMessages.push({
+        contact: chat.contact,
+        messageCount: chat.count,
+        lastMessage: chat.lastMsg,
+        lastTime: chat.lastTime,
+        messages: messages
+      });
+    }
+    
+    const data = {
+      exportDate: new Date().toISOString(),
+      totalChats: chats.length,
+      conversations: allMessages
+    };
+    
+    downloadJSON(data, `whatsapp-conversations-${getTimestamp()}.json`);
+    showToast('Chat data downloaded successfully', 'success');
+    closeDownloadPopup();
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Failed to download chat data', 'error');
+  }
+}
+
+async function downloadAppointments() {
+  try {
+    showToast('Preparing appointment data...', 'info');
+    
+    const appointments = await fetchAPI('/admin/appointments');
+    const data = {
+      exportDate: new Date().toISOString(),
+      totalAppointments: appointments.length,
+      appointments: appointments
+    };
+    
+    downloadJSON(data, `whatsapp-appointments-${getTimestamp()}.json`);
+    showToast('Appointments downloaded successfully', 'success');
+    closeDownloadPopup();
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Failed to download appointments', 'error');
+  }
+}
+
+async function downloadAppointmentsCSV() {
+  try {
+    showToast('Preparing CSV file...', 'info');
+    
+    const appointments = await fetchAPI('/admin/appointments');
+    
+    // CSV headers
+    const headers = ['Date', 'Time', 'Name', 'Contact', 'Brand', 'Device Type', 'Issue', 'Status', 'Estimate'];
+    
+    // CSV rows
+    const rows = appointments.map(apt => [
+      apt.date || '',
+      apt.time || '',
+      apt.name || '',
+      apt.contact || '',
+      apt.brand || '',
+      apt.deviceType || '',
+      apt.issue || '',
+      apt.status || 'pending',
+      apt.estimate || ''
+    ]);
+    
+    // Build CSV content
+    let csv = headers.join(',') + '\n';
+    rows.forEach(row => {
+      csv += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
+    });
+    
+    downloadFile(csv, `whatsapp-appointments-${getTimestamp()}.csv`, 'text/csv');
+    showToast('CSV downloaded successfully', 'success');
+    closeDownloadPopup();
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Failed to download CSV', 'error');
+  }
+}
+
+async function downloadAllData() {
+  try {
+    showToast('Preparing complete backup...', 'info');
+    
+    const [chats, appointments] = await Promise.all([
+      fetchAPI('/admin/chats'),
+      fetchAPI('/admin/appointments')
+    ]);
+    
+    const allMessages = [];
+    for (const chat of chats) {
+      const messages = await fetchAPI(`/admin/messages/${encodeURIComponent(chat.contact)}`);
+      allMessages.push({
+        contact: chat.contact,
+        messageCount: chat.count,
+        lastMessage: chat.lastMsg,
+        lastTime: chat.lastTime,
+        messages: messages
+      });
+    }
+    
+    const data = {
+      exportDate: new Date().toISOString(),
+      backup: {
+        conversations: {
+          totalChats: chats.length,
+          data: allMessages
+        },
+        appointments: {
+          total: appointments.length,
+          data: appointments
+        }
+      }
+    };
+    
+    downloadJSON(data, `whatsapp-bot-backup-${getTimestamp()}.json`);
+    showToast('Complete backup downloaded successfully', 'success');
+    closeDownloadPopup();
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Failed to download backup', 'error');
+  }
+}
+
+function downloadJSON(data, filename) {
+  const jsonStr = JSON.stringify(data, null, 2);
+  downloadFile(jsonStr, filename, 'application/json');
+}
+
+function downloadFile(content, filename, contentType) {
+  const blob = new Blob([content], { type: contentType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function getTimestamp() {
+  const now = new Date();
+  return now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
 // Utility functions
