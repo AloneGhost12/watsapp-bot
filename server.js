@@ -1,4 +1,5 @@
 // Clean rewrite of file to resolve merge artifacts
+import "dotenv/config";
 import express from "express";
 import axios from "axios";
 import crypto from "crypto";
