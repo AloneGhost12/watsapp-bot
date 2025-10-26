@@ -563,7 +563,21 @@ async function continueEstimate(from, s, input) {
       let brand = brands[idx - 1];
       if (!brand) brand = capitalize(input);
       if (!REPAIRS[brand]) {
-        await sendTextMessage(from, "Please choose a valid brand number or name from the list.");
+        // Brand not in database - use AI to help
+        endSession(from);
+        const history = await getConversationHistory(from, 5);
+        const aiResponse = await askGemini(
+          `User wants estimate for ${input} brand device. We don't have that in our database. Our available brands are: ${brands.join(', ')}. Tell them we can still help - ask what device model and issue they have, then provide an estimated price range. Suggest typing 'book' to schedule appointment with our team who can give exact quote.`,
+          history
+        );
+        if (aiResponse) {
+          await sendTextMessage(from, aiResponse);
+        } else {
+          await sendTextMessage(
+            from,
+            `😊 We don't have ${input} in our pricing database yet, but we can still help!\n\n💬 Please tell me:\n• Your exact model (e.g., "G8s ThinQ")\n• What needs repair\n\nI'll give you an estimated price range! 💰\n\nOr type 'book' to schedule an appointment where our technician can assess it in person! 📅`
+          );
+        }
         return;
       }
       s.data.brand = brand;
@@ -688,7 +702,14 @@ async function continueBooking(from, s, input) {
       let brand = brands[idx - 1];
       if (!brand) brand = capitalize(input);
       if (!REPAIRS[brand]) {
-        await sendTextMessage(from, "Please choose a valid brand from the list.");
+        // Brand not in database - allow booking anyway
+        s.data.brand = input;
+        s.data.model = "Unknown";
+        s.step = "issue";
+        await sendTextMessage(
+          from,
+          `📝 Got it! ${input} device.\n\nWhat issue are you experiencing? Please describe the problem (e.g., "broken screen", "won't turn on", "battery draining fast")`
+        );
         return;
       }
       s.data.brand = brand;
@@ -710,7 +731,13 @@ async function continueBooking(from, s, input) {
       let model = models[idx - 1];
       if (!model) model = input;
       if (!REPAIRS[s.data.brand]?.[model]) {
-        await sendTextMessage(from, "Please choose a valid model.");
+        // Model not in database - allow anyway
+        s.data.model = input;
+        s.step = "issue";
+        await sendTextMessage(
+          from,
+          `📝 Model: ${input}\n\nWhat issue are you experiencing? Please describe the problem.`
+        );
         return;
       }
       s.data.model = model;
@@ -732,8 +759,16 @@ async function continueBooking(from, s, input) {
       let issue = issues[idx - 1];
       if (!issue) issue = capitalize(input);
       const price = getIssuePrice(s.data.brand, s.data.model, issue);
+      
+      // If no price in database, allow booking without exact price
       if (price == null) {
-        await sendTextMessage(from, "Please choose a valid issue.");
+        s.data.issue = input;
+        s.data.price = null;
+        s.step = "date";
+        await sendTextMessage(
+          from,
+          `📝 Noted: ${s.data.brand} ${s.data.model} - ${input}\n\n⚠️ We'll provide an exact quote during your appointment.\n\nWhat date works for you? (YYYY-MM-DD, e.g., 2025-10-27)`
+        );
         return;
       }
       s.data.issue = issue;
