@@ -80,6 +80,23 @@ function writeJSON(file, obj) {
 
 ensureDataFiles();
 
+// --- Output helpers -----------------------------------------------------------
+function sanitizeForTechMode(to, text) {
+  try {
+    const s = sessions.get(to);
+    if (!s?.ultraTechMode || !text) return text;
+    const lines = String(text).split(/\r?\n/);
+    const banned = /(\bbook\b|\bappointment\b|\bschedule\b|📅|call\s+us|contact\s+us)/i;
+    const filtered = lines.filter(l => !banned.test(l));
+    return filtered.join('\n').replace(/\n{3,}/g, '\n\n');
+  } catch { return text; }
+}
+
+async function sendTextTechAware(to, body) {
+  const cleaned = sanitizeForTechMode(to, body);
+  return sendTextMessage(to, cleaned);
+}
+
 // Load repair price catalog (hot-loaded in memory; edit data/repairs.json to customize)
 let REPAIRS = readJSON(REPAIRS_FILE, {});
 function reloadRepairs() {
@@ -1232,7 +1249,7 @@ async function handleTextCommand(from, text) {
     const aiResponse = await askGemini(text, history, from);
     
     if (aiResponse) {
-      await sendTextMessage(from, aiResponse);
+      await sendTextTechAware(from, aiResponse);
       return;
     }
   } catch (error) {
@@ -1635,7 +1652,7 @@ async function continueEstimate(from, s, input) {
       s.data.issue = issue;
       s.data.price = price;
       if (tech) {
-        await sendTextMessage(
+        await sendTextTechAware(
           from,
           [
             `Tech Mode Estimate → ${s.data.brand} ${s.data.model} (${issue})`,
@@ -1646,7 +1663,7 @@ async function continueEstimate(from, s, input) {
         );
         endSession(from); // End flow gracefully in tech mode
       } else {
-        await sendTextMessage(
+        await sendTextTechAware(
           from,
           [
             `Estimate for ${s.data.brand} ${s.data.model} (${issue})`,
@@ -2164,7 +2181,7 @@ async function analyzeIssue(from, session) {
     const knowledgeBaseSolution = checkKnowledgeBase(issue, deviceType, errorDetails);
 
     if (knowledgeBaseSolution) {
-      await sendTextMessage(
+      await sendTextTechAware(
         from,
         tech ? `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)` : `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)\n\n📅 Or type 'book' to schedule professional repair.`
       );
@@ -2220,14 +2237,14 @@ Format with clear sections and numbered steps. Be specific and actionable.`;
     const aiResponse = await askGemini(enhancedPrompt, history, from);
 
     if (aiResponse) {
-      await sendTextMessage(
+      await sendTextTechAware(
         from,
         tech ? `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)` : `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)\n\n📅 If the problem persists, type 'book' to schedule professional repair.`
       );
       session.step = "analyze";
     } else {
       // Fallback response
-      await sendTextMessage(
+      await sendTextTechAware(
         from,
         tech ? `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. Restart device\n2. Check updates\n3. Clear cache/storage\n4. Safe mode test\n5. Factory reset (last resort)\n\nReply yes/no or provide more diagnostics.` : `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. **Restart the device** - Hold power button for 10-15 seconds\n2. **Check for updates** - Ensure OS and apps are current\n3. **Clear cache/storage** - Free up space and remove temp files\n4. **Safe mode test** - Boot without third-party apps\n5. **Factory reset** (last resort) - Backup data first!\n\n⚠️ *Important:* Backup your data before major changes.\n\nDid this help? (yes/no) or type 'book' for professional repair.`
       );
