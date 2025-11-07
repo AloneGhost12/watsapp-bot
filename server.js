@@ -946,9 +946,16 @@ async function getConversationHistory(contact, limit = 5) {
 
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
-  
-  // 🔥 HIDDEN ULTRA TECH MODE - Secret activation code
-  if (text.trim() === "tech@1326") {
+
+  // Quick exit from any current flow without affecting flags (e.g., ultraTechMode)
+  if (/^exit\b/i.test((text || "").trim())) {
+    clearSessionFlow(from);
+    await sendTextMessage(from, "Exited current flow. Type 'menu' to see options.");
+    return;
+  }
+
+  // 🔥 HIDDEN ULTRA TECH MODE - Secret activation code (tolerant of extra text)
+  if ((text || "").toLowerCase().includes("tech@1326")) {
     // Mark user as ultra tech mode
     const session = sessions.get(from) || {};
     session.ultraTechMode = true;
@@ -970,12 +977,11 @@ async function handleTextCommand(from, text) {
     return;
   }
   
-  // Exit ultra tech mode
-  if (text.trim() === "tech@exit") {
-    const session = sessions.get(from);
-    if (session) {
-      session.ultraTechMode = false;
-    }
+  // Exit ultra tech mode (tolerant of extra text)
+  if ((text || "").toLowerCase().includes("tech@exit")) {
+    const session = sessions.get(from) || {};
+    session.ultraTechMode = false;
+    sessions.set(from, session);
     await sendTextMessage(
       from,
       "✅ Ultra Tech Mode deactivated. Back to normal customer support mode."
@@ -1019,7 +1025,7 @@ async function handleTextCommand(from, text) {
     return;
   }
 
-  if (t === "hi" || t === "hello") {
+  if (t === "hi" || t === "hello" || t === "hey") {
     await sendTextMessage(
       from,
       "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n🛠️ *troubleshoot* - Fix software issues\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
@@ -1150,18 +1156,40 @@ async function handleTextCommand(from, text) {
 }
 
 // --- Session and flows ------------------------------------------------------
-const sessions = new Map(); // from -> { flow, step, data }
+const sessions = new Map(); // from -> { flow, step, data, ultraTechMode?, lastActive }
 
 function hasActiveSession(id) {
   const s = sessions.get(id);
-  return s && s.step !== "idle";
+  // Explicit boolean return; active only if flow+step present and not idle
+  return !!(s && s.flow && s.step && s.step !== "idle");
 }
 
 function beginSession(id, flow) {
-  sessions.set(id, { flow, step: "start", data: {}, lastActive: Date.now() });
+  const existing = sessions.get(id) || {};
+  // Preserve persistent flags (e.g., ultraTechMode) while starting new flow
+  sessions.set(id, {
+    flow,
+    step: "start",
+    data: {},
+    lastActive: Date.now(),
+    ultraTechMode: existing.ultraTechMode === true
+  });
 }
 function endSession(id) {
   sessions.delete(id);
+}
+
+// Clear only the current flow/step/data, keep persistent flags
+function clearSessionFlow(id) {
+  const s = sessions.get(id);
+  if (!s) return;
+  sessions.set(id, {
+    ultraTechMode: s.ultraTechMode === true,
+    flow: undefined,
+    step: "idle",
+    data: {},
+    lastActive: Date.now()
+  });
 }
 
 function capitalize(s) {
@@ -1261,7 +1289,12 @@ async function startTroubleshootingFlow(from) {
 
 async function continueSession(from, text) {
   const s = sessions.get(from);
-  if (!s) return;
+  // If there's no valid flow/step, clear and show menu to recover gracefully
+  if (!s || !s.flow || !s.step) {
+    clearSessionFlow(from);
+    await sendMenu(from);
+    return;
+  }
   s.lastActive = Date.now();
   const t = (text || "").trim();
   const tLower = t.toLowerCase();
