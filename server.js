@@ -287,19 +287,103 @@ async function sendTextMessage(to, body) {
     console.error("Missing ACCESS_TOKEN or PHONE_NUMBER_ID in environment variables");
     throw new Error("Missing WhatsApp credentials");
   }
+  
+  const MAX_LENGTH = 4000; // WhatsApp limit is 4096, use 4000 to be safe
   const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
-  try {
-    await axios.post(
-      url,
-      { messaging_product: "whatsapp", to, text: { body } },
-      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
-    );
-    // Save outgoing message
-    await saveOutgoing(to, body);
-  } catch (err) {
-    logGraphError(err, "sendTextMessage");
-    throw err;
+  
+  // If message is short enough, send normally
+  if (body.length <= MAX_LENGTH) {
+    try {
+      await axios.post(
+        url,
+        { messaging_product: "whatsapp", to, text: { body } },
+        { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+      );
+      await saveOutgoing(to, body);
+    } catch (err) {
+      logGraphError(err, "sendTextMessage");
+      throw err;
+    }
+    return;
   }
+  
+  // Split long messages
+  console.log(`[sendTextMessage] Message too long (${body.length} chars), splitting...`);
+  const parts = splitMessage(body, MAX_LENGTH);
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const prefix = parts.length > 1 ? `📄 Part ${i + 1}/${parts.length}\n\n` : '';
+    const message = prefix + part;
+    
+    try {
+      await axios.post(
+        url,
+        { messaging_product: "whatsapp", to, text: { body: message } },
+        { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } }
+      );
+      await saveOutgoing(to, message);
+      
+      // Small delay between parts to ensure order
+      if (i < parts.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (err) {
+      logGraphError(err, `sendTextMessage part ${i + 1}`);
+      throw err;
+    }
+  }
+}
+
+// Helper function to split long messages intelligently
+function splitMessage(text, maxLength) {
+  if (text.length <= maxLength) return [text];
+  
+  const parts = [];
+  let remaining = text;
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      parts.push(remaining);
+      break;
+    }
+    
+    // Try to split at a natural break point (paragraph, sentence, or word)
+    let splitIndex = maxLength;
+    
+    // Look for paragraph break (double newline)
+    const paragraphBreak = remaining.lastIndexOf('\n\n', maxLength);
+    if (paragraphBreak > maxLength * 0.5) {
+      splitIndex = paragraphBreak + 2;
+    } else {
+      // Look for single newline
+      const lineBreak = remaining.lastIndexOf('\n', maxLength);
+      if (lineBreak > maxLength * 0.5) {
+        splitIndex = lineBreak + 1;
+      } else {
+        // Look for sentence end
+        const sentenceEnd = Math.max(
+          remaining.lastIndexOf('. ', maxLength),
+          remaining.lastIndexOf('! ', maxLength),
+          remaining.lastIndexOf('? ', maxLength)
+        );
+        if (sentenceEnd > maxLength * 0.5) {
+          splitIndex = sentenceEnd + 2;
+        } else {
+          // Look for word boundary
+          const spaceIndex = remaining.lastIndexOf(' ', maxLength);
+          if (spaceIndex > maxLength * 0.5) {
+            splitIndex = spaceIndex + 1;
+          }
+        }
+      }
+    }
+    
+    parts.push(remaining.substring(0, splitIndex).trim());
+    remaining = remaining.substring(splitIndex).trim();
+  }
+  
+  return parts;
 }
 
 // Send interactive buttons (max 3 buttons)
