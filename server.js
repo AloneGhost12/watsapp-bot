@@ -440,10 +440,11 @@ async function sendDocument(to, pdfPath, caption) {
 async function sendMenu(to) {
   await sendButtons(
     to,
-    "📋 *Main Menu* - Choose what you need:\n\n💰 Get repair pricing instantly\n📅 Schedule your repair visit\n🆘 Learn how to use this bot\n\n✨ Or just ask me anything naturally!",
+    "📋 *Main Menu* - Choose what you need:\n\n💰 Get repair pricing instantly\n📅 Schedule your repair visit\n🛠️ Troubleshoot software issues\n🆘 Learn how to use this bot\n\n✨ Or just ask me anything naturally!",
     [
       { id: "estimate", title: "💰 Get Estimate" },
       { id: "book", title: "📅 Book Appointment" },
+      { id: "troubleshoot", title: "🛠️ Troubleshoot" },
       { id: "help", title: "🆘 Help" }
     ]
   );
@@ -768,7 +769,7 @@ async function getConversationHistory(contact, limit = 5) {
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
   
-  // Allow menu number selections (1, 2, 3) when NO active session
+  // Allow menu number selections (1, 2, 3, 4) when NO active session
   if (!hasActiveSession(from)) {
     if (t === "1") {
       await startEstimateFlow(from);
@@ -779,12 +780,17 @@ async function handleTextCommand(from, text) {
       return;
     }
     if (t === "3") {
+      await startTroubleshootingFlow(from);
+      return;
+    }
+    if (t === "4") {
       await sendTextMessage(
         from,
         [
           "I can do these:",
           "• estimate — get repair cost by brand/model/issue",
           "• book — book an appointment",
+          "• troubleshoot — fix software issues",
           "• menu — show options",
           "• cancel — stop current flow"
         ].join("\n")
@@ -802,7 +808,7 @@ async function handleTextCommand(from, text) {
   if (t === "hi" || t === "hello") {
     await sendTextMessage(
       from,
-      "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
+      "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n🛠️ *troubleshoot* - Fix software issues\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
     );
     return;
   }
@@ -848,6 +854,7 @@ async function handleTextCommand(from, text) {
         "📋 *menu* — Show all options",
         "💰 *estimate* — Get repair cost",
         "📅 *book* — Schedule appointment",
+        "🛠️ *troubleshoot* — Fix software issues",
         "❌ *cancel* — Stop current action",
         "",
         "💬 *Or just chat with me!*",
@@ -875,6 +882,11 @@ async function handleTextCommand(from, text) {
   if (["book", "appointment", "book appointment"].includes(t)) {
     endSession(from); // Allow book to override session
     await startBookingFlow(from);
+    return;
+  }
+  if (t === "troubleshoot" || t === "fix" || t === "software") {
+    endSession(from); // Allow troubleshoot to override session
+    await startTroubleshootingFlow(from);
     return;
   }
   if (t === "cancel" || t === "reset") {
@@ -1018,6 +1030,21 @@ async function startBookingFlow(from) {
   await sendTextMessage(from, "Let’s book an appointment. What’s your name?");
 }
 
+async function startTroubleshootingFlow(from) {
+  beginSession(from, "troubleshoot");
+  sessions.get(from).step = "issue";
+  await sendTextMessage(
+    from, 
+    "🛠️ *SOFTWARE TROUBLESHOOTING*\n\n" +
+    "I can help you fix software issues! 🔧\n\n" +
+    "📝 *Tell me about the problem:*\n" +
+    "• Describe the error or issue\n" +
+    "• Type the error code you see\n" +
+    "• Send a screenshot of the error 📸\n\n" +
+    "I'll analyze it and give you step-by-step solutions! ✨"
+  );
+}
+
 async function continueSession(from, text) {
   const s = sessions.get(from);
   if (!s) return;
@@ -1051,9 +1078,16 @@ async function continueSession(from, text) {
     await startBookingFlow(from);
     return;
   }
+  
+  if (tLower === "troubleshoot" || tLower === "fix" || tLower === "software") {
+    endSession(from);
+    await startTroubleshootingFlow(from);
+    return;
+  }
 
   if (s.flow === "estimate") return continueEstimate(from, s, t);
   if (s.flow === "booking") return continueBooking(from, s, t);
+  if (s.flow === "troubleshoot") return continueTroubleshoot(from, s, t);
   if (s.flow === "search_results") return handleSearchSelection(from, s, t);
 }
 
@@ -1219,11 +1253,11 @@ async function continueEstimate(from, s, input) {
   }
 }
 
-function isValidDate(str) {
+async function isValidDate(str) {
   // YYYY-MM-DD
   return /^\d{4}-\d{2}-\d{2}$/.test(str);
 }
-function isValidTime(str) {
+async function isValidTime(str) {
   // HH:MM 24h
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(str);
 }
@@ -1432,8 +1466,9 @@ async function continueBooking(from, s, input) {
         from,
         [
           `Model: ${model}`,
-          "What’s the issue?",
+          "What needs repair?",
           ...issues.map((m, i) => `${i + 1}) ${m}`),
+          "Reply with the number or issue name.",
         ].join("\n")
       );
       return;
@@ -1444,21 +1479,12 @@ async function continueBooking(from, s, input) {
       let issue = issues[idx - 1];
       if (!issue) issue = capitalize(input);
       const price = getIssuePrice(s.data.brand, s.data.model, issue);
-      
-      // If no price in database, allow booking without exact price
       if (price == null) {
-        s.data.issue = input;
-        s.data.price = null;
-        s.step = "date";
-        await sendTextMessage(
-          from,
-          `📝 Noted: ${s.data.brand} ${s.data.model} - ${input}\n\n⚠️ We'll provide an exact quote during your appointment.\n\nWhat date works for you? (YYYY-MM-DD, e.g., 2025-10-27)`
-        );
+        await sendTextMessage(from, "Please choose a valid issue from the list.");
         return;
       }
       s.data.issue = issue;
       s.data.price = price;
-      s.step = "date";
       await sendTextMessage(
         from,
         [
@@ -1466,6 +1492,7 @@ async function continueBooking(from, s, input) {
           "What date works for you? (YYYY-MM-DD)",
         ].join("\n")
       );
+      s.step = "date";
       return;
     }
     case "date": {
@@ -1609,6 +1636,257 @@ async function continueBooking(from, s, input) {
   }
 }
 
+// Software Troubleshooting Flow
+async function continueTroubleshoot(from, s, input) {
+  switch (s.step) {
+    case "issue": {
+      if (!input || input.trim().length < 3) {
+        await sendTextMessage(from, "Please describe your issue in more detail (at least 3 characters).");
+        return;
+      }
+
+      s.data.issue = input.trim();
+      s.step = "device_type";
+
+      await sendButtons(
+        from,
+        `🛠️ *Issue:* ${input}\n\nWhat type of device is having the problem?`,
+        [
+          { id: "phone", title: "📱 Phone" },
+          { id: "laptop", title: "💻 Laptop/PC" },
+          { id: "tablet", title: "📱 Tablet" },
+          { id: "other_device", title: "🔧 Other Device" }
+        ]
+      );
+      return;
+    }
+
+    case "device_type": {
+      const deviceTypes = {
+        "phone": "Phone",
+        "laptop": "Laptop/PC",
+        "tablet": "Tablet",
+        "other_device": "Other Device"
+      };
+
+      if (!deviceTypes[input]) {
+        await sendTextMessage(from, "Please select a valid device type from the options.");
+        return;
+      }
+
+      s.data.deviceType = deviceTypes[input];
+      s.step = "error_details";
+
+      await sendTextMessage(
+        from,
+        `📱 *${s.data.deviceType}* - ${s.data.issue}\n\nTo provide the best solution, please provide:\n\n1️⃣ *Error code* (if you see one)\n2️⃣ *Error message* (exact text)\n3️⃣ *When it happens* (startup, app use, etc.)\n\nOr send a *photo* of the error screen!\n\nType your details or send an image:`
+      );
+      return;
+    }
+
+    case "error_details": {
+      if (!input || input.trim().length < 2) {
+        await sendTextMessage(from, "Please provide more details about the error or send a photo.");
+        return;
+      }
+
+      s.data.errorDetails = input.trim();
+      s.step = "analyze";
+
+      // Analyze the issue using AI
+      await analyzeIssue(from, s);
+      return;
+    }
+
+    case "analyze": {
+      // This step handles follow-up after analysis
+      if (input.toLowerCase().includes("yes") || input.toLowerCase().includes("try")) {
+        await sendTextMessage(from, "Great! Try the steps above and let me know if you need more help. If the issue persists, you can always book a repair appointment.");
+        endSession(from);
+      } else if (input.toLowerCase().includes("no") || input.toLowerCase().includes("book")) {
+        await sendTextMessage(from, "No problem! Let's get you scheduled for professional repair.");
+        // Switch to booking flow
+        s.flow = "booking";
+        s.step = "name";
+        await sendTextMessage(from, "What's your name for the appointment?");
+      } else {
+        await sendTextMessage(from, "Type 'yes' to try the steps, or 'book' to schedule a repair appointment.");
+      }
+      return;
+    }
+
+    default:
+      endSession(from);
+      await sendTextMessage(from, "Session ended. Type 'menu' to start again.");
+  }
+}
+
+// Analyze software issues using AI and knowledge base
+async function analyzeIssue(from, session) {
+  const { issue, deviceType, errorDetails } = session.data;
+
+  await sendTextMessage(from, "🔍 *Analyzing your issue...*\n\n⏳ Checking knowledge base and generating custom solution...");
+
+  try {
+    // First check knowledge base for common issues
+    const knowledgeBaseSolution = checkKnowledgeBase(issue, deviceType, errorDetails);
+
+    if (knowledgeBaseSolution) {
+      await sendTextMessage(
+        from,
+        `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)\n\n📅 Or type 'book' to schedule professional repair.`
+      );
+      session.step = "analyze";
+      return;
+    }
+
+    // If no knowledge base match, use AI analysis with enhanced error detection
+    const history = await getConversationHistory(from, 3);
+    const enhancedPrompt = `🔧 TECHNICAL SUPPORT REQUEST - SOFTWARE TROUBLESHOOTING
+
+📱 Device Type: ${deviceType}
+❗ Issue Reported: ${issue}
+📋 Additional Details: ${errorDetails}
+
+As an expert technical support specialist, analyze this issue and provide:
+
+🔍 **ERROR ANALYSIS**
+- Identify error type (software, driver, system, app, network, etc.)
+- Extract any error codes mentioned (0x codes, HTTP codes, etc.)
+- Determine severity level
+
+🎯 **ROOT CAUSE**
+- Most probable cause
+- Why this typically happens
+- Related symptoms to watch for
+
+✅ **STEP-BY-STEP SOLUTION** (Must be numbered and specific!)
+1. [First diagnostic step - be VERY specific with paths/commands]
+2. [Second fix attempt - include exact settings location]
+3. [Alternative method if #2 fails]
+4. [Advanced troubleshooting if still not fixed]
+5. [When to factory reset or seek professional repair]
+
+⚠️ **SAFETY WARNINGS**
+- Data backup needed? (Yes/No)
+- Risk level of fixes (Low/Medium/High)
+- What NOT to do
+
+🛡️ **PREVENTION TIPS**
+- How to avoid this in future
+- Maintenance recommendations
+
+CRITICAL REQUIREMENTS:
+✅ ONLY legitimate, tested, working solutions
+✅ NO risky hacks or registry tweaks unless absolutely necessary
+✅ Provide EXACT commands, file paths, or settings locations
+✅ Include version compatibility notes where relevant
+✅ Warn about data loss risks
+✅ If issue needs hardware repair, state clearly
+
+Format with clear sections and numbered steps. Be specific and actionable.`;
+    const aiResponse = await askGemini(enhancedPrompt, history);
+
+    if (aiResponse) {
+      await sendTextMessage(
+        from,
+        `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)\n\n📅 If the problem persists, type 'book' to schedule professional repair.`
+      );
+      session.step = "analyze";
+    } else {
+      // Fallback response
+      await sendTextMessage(
+        from,
+        `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. **Restart the device** - Hold power button for 10-15 seconds\n2. **Check for updates** - Ensure OS and apps are current\n3. **Clear cache/storage** - Free up space and remove temp files\n4. **Safe mode test** - Boot without third-party apps\n5. **Factory reset** (last resort) - Backup data first!\n\n⚠️ *Important:* Backup your data before major changes.\n\nDid this help? (yes/no) or type 'book' for professional repair.`
+      );
+      session.step = "analyze";
+    }
+
+  } catch (error) {
+    console.error('Error analyzing issue:', error);
+    await sendTextMessage(
+      from,
+      `❌ Sorry, I encountered an error analyzing your issue.\n\nPlease try describing it differently or type 'book' to schedule a repair appointment.`
+    );
+    endSession(from);
+  }
+}
+
+// Knowledge base for common software issues
+function checkKnowledgeBase(issue, deviceType, details) {
+  const issue_lower = (issue + " " + (details || "")).toLowerCase();
+
+  // Common error patterns
+  const patterns = {
+    // Windows errors
+    "blue screen": "🖥️ **BLUE SCREEN FIX**\n\n1. **Note the error code** (STOP code)\n2. **Restart in Safe Mode** - Press Shift+Restart\n3. **Update drivers** - Use Device Manager\n4. **Run System File Checker** - Open CMD as admin, type: `sfc /scannow`\n5. **Check disk errors** - CMD: `chkdsk /f /r`\n6. **Update Windows** - Settings > Update & Security\n\nIf persistent, hardware issue likely - book repair.",
+
+    "windows update": "🔄 **WINDOWS UPDATE ISSUES**\n\n1. **Run Windows Update Troubleshooter** - Settings > Update & Security > Troubleshoot\n2. **Clear update cache** - Stop Windows Update service, delete C:\\Windows\\SoftwareDistribution\\Download\\*\n3. **Reset Windows Update** - Microsoft support tools\n4. **Check disk space** - Need 10GB+ free\n5. **Disable antivirus temporarily**\n\nFor stuck updates, wait or force restart.",
+
+    "driver": "🎮 **DRIVER PROBLEMS**\n\n1. **Identify device** - Device Manager (yellow exclamation)\n2. **Download latest driver** - From manufacturer website\n3. **Uninstall old driver** - Device Manager > Uninstall\n4. **Install new driver** - Run installer as admin\n5. **Windows Update** - May have generic drivers\n\nAvoid third-party driver updaters - use official sources only.",
+
+    // Android/iOS errors
+    "app crash": "📱 **APP CRASHING FIX**\n\n1. **Force stop app** - Settings > Apps > Force Stop\n2. **Clear app cache/data** - Storage > Clear Cache\n3. **Update the app** - Play Store/App Store\n4. **Restart device**\n5. **Uninstall/reinstall** - If problem persists\n6. **Check app permissions**\n\nIf all apps crash, system issue - factory reset or repair.",
+
+    "boot loop": "🔄 **BOOT LOOP FIX**\n\n1. **Force restart** - Hold power button 10-15 seconds\n2. **Boot to safe mode** - Power + Volume Down (varies by device)\n3. **Clear cache partition** - Recovery mode\n4. **Factory reset** - Last resort, backup first\n5. **Check hardware** - Battery, power button\n\nIf persists, likely hardware issue - needs repair.",
+
+    "wifi": "📶 **WIFI CONNECTION ISSUES**\n\n1. **Toggle airplane mode** - On/off quickly\n2. **Forget network** - Settings > WiFi > Forget\n3. **Restart router** - Unplug for 30 seconds\n4. **Reset network settings** - Settings > General > Reset > Reset Network\n5. **Check MAC address filtering**\n6. **Update router firmware**\n\nTry different networks to isolate issue.",
+
+    "battery drain": "🔋 **BATTERY DRAIN FIX**\n\n1. **Check battery usage** - Settings > Battery\n2. **Close background apps** - Recent apps > Close all\n3. **Disable location/GPS** when not needed\n4. **Lower screen brightness**\n5. **Turn off push notifications**\n6. **Update apps and OS**\n7. **Calibrate battery** - Full charge, full drain, repeat\n\nReplace battery if issue persists after optimization.",
+
+    // Common error codes
+    "0x80070005": "🔑 **ACCESS DENIED (0x80070005)**\n\n1. **Run as administrator** - Right-click > Run as admin\n2. **Check permissions** - Properties > Security > Edit\n3. **Disable UAC temporarily** - Control Panel > User Accounts\n4. **Check antivirus** - May be blocking access\n5. **System restore** - To before problem started\n\nOften caused by permission issues or security software.",
+
+    "0xc0000142": "⚠️ **APPLICATION ERROR (0xc0000142)**\n\n1. **Run compatibility troubleshooter** - Right-click exe > Properties > Compatibility > Run troubleshooter\n2. **Update .NET Framework** - Microsoft website\n3. **Run SFC scan** - CMD: `sfc /scannow`\n4. **Reinstall application**\n5. **Check for Windows updates**\n\nUsually compatibility or missing dependency issue.",
+
+    "404": "🌐 **404 NOT FOUND**\n\n1. **Check URL spelling**\n2. **Clear browser cache** - Ctrl+Shift+Delete\n3. **Try different browser**\n4. **Check internet connection**\n5. **DNS flush** - CMD: `ipconfig /flushdns`\n6. **Disable VPN/proxy**\n\nIf website-wide issue, contact website administrator.",
+
+    "500": "🌐 **500 INTERNAL SERVER ERROR**\n\n1. **Refresh page** - F5 or Ctrl+R\n2. **Clear browser cache**\n3. **Try incognito mode**\n4. **Check server status** - DownDetector or similar\n5. **Contact website support**\n\nServer-side issue, usually temporary.",
+
+    // More Windows error codes
+    "0x80004005": "⚠️ **UNSPECIFIED ERROR (0x80004005)**\n\n1. **Run as administrator**\n2. **Re-register DLL files** - CMD: `regsvr32 /u /s %windir%\\system32\\*.dll`\n3. **Update Windows**\n4. **Disable firewall temporarily** - Test if it's blocking\n5. **Check file permissions**\n6. **System Restore**\n\nCommon with file operations, network shares, or updates.",
+
+    "0x80070057": "❌ **INVALID PARAMETER (0x80070057)**\n\n1. **Check disk for errors** - CMD: `chkdsk /f`\n2. **Run DISM** - `DISM /Online /Cleanup-Image /RestoreHealth`\n3. **Disable Fast Startup** - Power Options > Choose what power buttons do\n4. **Format drive correctly** - Right partition format\n5. **Update drivers**\n\nOften during Windows Update or drive formatting.",
+
+    "0xc000000e": "🔧 **BOOT CONFIGURATION ERROR (0xc000000e)**\n\n1. **Boot from Windows USB/DVD**\n2. **Select 'Repair your computer'**\n3. **Troubleshoot > Advanced > Command Prompt**\n4. **Run:** `bootrec /fixmbr`\n5. **Run:** `bootrec /fixboot`\n6. **Run:** `bootrec /rebuildbcd`\n7. **Restart**\n\nBoot files corrupted - needs repair disk.",
+
+    "0x8007000d": "📁 **DATA INVALID (0x8007000d)**\n\n1. **Run SFC scan** - `sfc /scannow`\n2. **Run DISM** - `DISM /Online /Cleanup-Image /RestoreHealth`\n3. **Re-download file/installer**\n4. **Check disk space**\n5. **Disable antivirus temporarily**\n6. **Try different download source**\n\nCorrupted download or system files.",
+
+    "dpc watchdog violation": "⏱️ **DPC WATCHDOG VIOLATION**\n\n1. **Update all drivers** - Especially SSD, chipset, graphics\n2. **Update SSD firmware** - From manufacturer\n3. **Run chkdsk** - `chkdsk /f /r`\n4. **Disable Fast Startup**\n5. **Check SATA cable/port**\n6. **Test RAM** - Windows Memory Diagnostic\n\nUsually driver or storage issue.",
+
+    "page fault in nonpaged area": "💾 **PAGE FAULT IN NONPAGED AREA**\n\n1. **Test RAM** - Windows Memory Diagnostic\n2. **Update drivers** - All hardware drivers\n3. **Check disk** - `chkdsk /f /r`\n4. **Disable hardware acceleration** - In browsers/apps\n5. **Uninstall recent software**\n6. **Boot to safe mode** - Identify problematic driver\n\nRAM or driver issue - test hardware.",
+
+    "system_service_exception": "🛑 **SYSTEM SERVICE EXCEPTION**\n\n1. **Boot to Safe Mode**\n2. **Update graphics driver** - Most common cause\n3. **Update Windows**\n4. **Run SFC** - `sfc /scannow`\n5. **Uninstall recent programs**\n6. **Roll back driver** - Device Manager if recent update\n\nDriver conflict, usually graphics or antivirus.",
+
+    // Mobile-specific errors
+    "storage full": "📦 **STORAGE FULL FIX**\n\n1. **Check storage** - Settings > Storage\n2. **Clear app cache** - Settings > Apps > Each app > Clear Cache\n3. **Delete unused apps**\n4. **Move photos to cloud** - Google Photos, iCloud\n5. **Clear WhatsApp media** - Large media files\n6. **Use Files app** - Find large files\n7. **Factory reset** - Last resort, backup first\n\nRegular maintenance prevents this.",
+
+    "sim not detected": "📱 **SIM NOT DETECTED FIX**\n\n1. **Restart device**\n2. **Remove and reinsert SIM** - Clean with cloth\n3. **Try SIM in another phone** - Test if SIM faulty\n4. **Check airplane mode** - Turn off\n5. **Reset network settings**\n6. **Update carrier settings**\n7. **Contact carrier** - May need new SIM\n\nIf all fail, SIM slot may be damaged.",
+
+    "bootloop": "🔄 **BOOTLOOP COMPREHENSIVE FIX**\n\n**For Android:**\n1. **Force restart** - Hold Power + Vol Down 10-15 sec\n2. **Boot to Recovery** - Power + Vol Up/Down (varies)\n3. **Wipe cache partition**\n4. **Factory reset** - Backup first if possible\n5. **Flash stock firmware** - Using official tools\n\n**For iPhone:**\n1. **Force restart** - Steps vary by model\n2. **DFU mode** - Connect to iTunes/Finder\n3. **Restore firmware**\n\nOften caused by bad update or system file corruption.",
+
+    "imei null": "📵 **IMEI NULL/INVALID FIX**\n\n⚠️ **WARNING:** This is serious!\n\n1. **Check IMEI** - Dial `*#06#`\n2. **Restart device**\n3. **Remove and reinsert SIM**\n4. **Flash stock firmware** - Official method only\n5. **IMEI repair** - Requires professional service\n\n⚠️ DO NOT use shady IMEI repair tools - illegal in many countries!\nContact manufacturer or authorized service center.",
+
+    "unfortunately app has stopped": "📱 **APP STOPPED WORKING FIX**\n\n1. **Force stop app** - Settings > Apps > Force Stop\n2. **Clear app cache** - Don't clear data yet\n3. **Clear app data** - If cache didn't work\n4. **Update app** - Google Play Store\n5. **Uninstall updates** - If system app\n6. **Reinstall app** - Complete removal first\n7. **Update Android OS**\n8. **Factory reset** - Last resort\n\nCheck if other apps also crash - may be system issue.",
+
+    // Network errors
+    "dns_probe_finished_nxdomain": "🌐 **DNS ERROR - DOMAIN NOT FOUND**\n\n1. **Check URL spelling**\n2. **Flush DNS cache** - CMD: `ipconfig /flushdns`\n3. **Change DNS servers:**\n   - Google DNS: 8.8.8.8, 8.8.4.4\n   - Cloudflare: 1.1.1.1, 1.0.0.1\n4. **Release/Renew IP:**\n   - `ipconfig /release`\n   - `ipconfig /renew`\n5. **Reset network** - `netsh winsock reset`\n6. **Restart router**\n7. **Disable VPN**\n\nDNS resolution failure.",
+
+    "err_connection_refused": "🔌 **CONNECTION REFUSED ERROR**\n\n1. **Check website status** - DownDetector\n2. **Clear browser cache/cookies**\n3. **Try different browser**\n4. **Disable firewall/antivirus temporarily**\n5. **Flush DNS** - `ipconfig /flushdns`\n6. **Check proxy settings** - Browser settings\n7. **Reset network** - `netsh winsock reset`\n8. **Restart router**\n\nServer refusing connection or firewall blocking.",
+
+    "no internet connection": "📡 **NO INTERNET CONNECTION FIX**\n\n1. **Restart router** - Unplug 30 seconds\n2. **Restart device**\n3. **Forget WiFi network** - Reconnect\n4. **Check other devices** - Isolate device vs router issue\n5. **Reset network settings** - Device settings\n6. **Update network drivers** - Windows only\n7. **Change DNS** - 8.8.8.8\n8. **Contact ISP** - If all else fails\n\nDetermine if device, router, or ISP issue."
+  };
+
+  // Check for pattern matches
+  for (const [pattern, solution] of Object.entries(patterns)) {
+    if (issue_lower.includes(pattern)) {
+      return solution;
+    }
+  }
+
+  return null; // No match found
+}
+
 // Handle selection from search results - allows user to pick a model and choose estimate or booking
 async function handleSearchSelection(from, s, input) {
   const t = input.trim().toLowerCase();
@@ -1683,87 +1961,195 @@ async function handleSearchSelection(from, s, input) {
   endSession(from);
 }
 
-// --- Save incoming inquiries/messages --------------------------------------
-async function saveInquiry(message) {
+// Handle image messages for troubleshooting
+async function handleImageMessage(from, message) {
   try {
-    if (!message) return;
-    const from = message.from; // customer's number
-    const type = message.type;
-    const text = type === "text" ? message.text?.body : undefined;
-    if (mongoReady && Inquiry) {
-      await Inquiry.create({
-        contact: from,
-        direction: "in",
+    const imageId = message.image?.id;
+    const caption = message.image?.caption || "";
+
+    if (!imageId) {
+      await sendTextMessage(from, "❌ Could not process the image. Please try sending it again.");
+      return;
+    }
+
+    // Check if user is in troubleshooting session
+    const session = sessions.get(from);
+    if (session && session.flow === "troubleshoot") {
+      // Download and analyze the image
+      await sendTextMessage(from, "📸 *Image received!*\n\n🔍 Analyzing error screenshot...");
+
+      try {
+        const imageAnalysis = await analyzeErrorImage(from, imageId, caption);
+
+        if (imageAnalysis) {
+          await sendTextMessage(
+            from,
+            `🖼️ *IMAGE ANALYSIS COMPLETE*\n\n${imageAnalysis}\n\nDid this solve your problem? (yes/no)\n\nOr type 'book' to schedule professional repair.`
+          );
+          session.step = "analyze";
+          session.data.hasImage = true;
+          session.data.imageAnalysis = imageAnalysis;
+        } else {
+          await sendTextMessage(
+            from,
+            `❌ Could not analyze the image clearly.\n\nPlease describe the error you see in the image, or type 'book' to schedule a repair appointment.`
+          );
+        }
+      } catch (error) {
+        console.error('Image analysis error:', error);
+        await sendTextMessage(
+          from,
+          `❌ Error analyzing image.\n\nPlease describe the error instead, or type 'book' to schedule professional repair.`
+        );
+      }
+    } else {
+      // Not in troubleshooting session
+      await sendTextMessage(
         from,
-        to: PHONE_NUMBER_ID,
-        type,
-        text,
-        status: undefined,
-        raw: message,
-      });
-    } else {
-      // optionally append to a local log file
-      const logFile = path.join(DATA_DIR, "inquiries.log");
-      fs.appendFileSync(
-        logFile,
-        JSON.stringify({ ts: new Date().toISOString(), contact: from, direction: "in", from, to: PHONE_NUMBER_ID, type, text }) +
-          "\n"
+        `📸 Thanks for the image!\n\nIf this is an error screenshot, type 'troubleshoot' to get help fixing it.\n\nOtherwise, describe what you need help with!`
       );
     }
-  } catch (e) {
-    console.error("Failed to save inquiry:", e.message);
+  } catch (error) {
+    console.error('Error handling image message:', error);
+    await sendTextMessage(from, "❌ Error processing image. Please try again or describe the issue in text.");
   }
 }
 
-async function saveOutgoing(to, body) {
+// Analyze error images using Gemini AI Vision
+async function analyzeErrorImage(from, imageId, caption) {
+  if (!GEMINI_API_KEY) {
+    console.warn("GEMINI_API_KEY not configured - image analysis disabled");
+    return null;
+  }
+
   try {
-    if (mongoReady && Inquiry) {
-      await Inquiry.create({
-        contact: to,
-        direction: "out",
-        from: PHONE_NUMBER_ID,
-        to,
-        type: "text",
-        text: body,
-      });
-    } else {
-      const logFile = path.join(DATA_DIR, "inquiries.log");
-      fs.appendFileSync(
-        logFile,
-        JSON.stringify({ ts: new Date().toISOString(), contact: to, direction: "out", from: PHONE_NUMBER_ID, to, type: "text", text: body }) +
-          "\n"
-      );
+    // First, download the image from WhatsApp
+    const imageUrl = await getWhatsAppMediaUrl(imageId);
+
+    if (!imageUrl) {
+      return null;
     }
-  } catch (e) {
-    console.error("Failed to save outgoing:", e.message);
+
+    // Use Gemini Pro Vision to analyze the image
+    const prompt = `You are an expert technical support specialist analyzing an error screenshot. 
+
+ANALYZE THIS ERROR IMAGE AND PROVIDE:
+
+🔍 **ERROR IDENTIFICATION**
+- Exact error code (if visible)
+- Error message text
+- Application/System affected
+- When this typically occurs
+
+🔧 **ROOT CAUSE ANALYSIS**
+- Most likely cause
+- Why this happens
+- Related symptoms
+
+✅ **STEP-BY-STEP SOLUTION** (Number each step clearly)
+1. [First diagnostic/fix step with EXACT details]
+2. [Second step with specific commands/settings]
+3. [Continue with proven solutions]
+4. [Include alternative methods]
+5. [When to seek professional help]
+
+⚠️ **SEVERITY & PREVENTION**
+- Issue severity: Low/Medium/High
+- Data loss risk: Yes/No
+- How to prevent this
+
+📋 **ADDITIONAL NOTES**
+- Common mistakes to avoid
+- Backup recommendations
+- Related issues to watch for
+
+${caption ? `\nUser Context: "${caption}"` : ''}
+
+CRITICAL REQUIREMENTS:
+✅ Only provide LEGITIMATE, SAFE, WORKING solutions
+✅ Use specific commands, settings paths, and version info
+✅ Include warnings for risky operations
+✅ If unclear, state "Cannot clearly identify - need more info"
+✅ Format with clear emoji headers and numbered steps
+
+Be detailed, specific, and actionable. This is for real troubleshooting.`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: await downloadAndEncodeImage(imageUrl)
+              }
+            }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 800,
+          topP: 0.9,
+          topK: 50
+        }
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+      }
+    );
+
+    const aiText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return aiText?.trim() || null;
+
+  } catch (error) {
+    console.error('Gemini Vision API error:', error.response?.data || error.message);
+    return null;
   }
 }
 
-// Dev helper: save an inbound text message (simulates a user message)
-async function saveInboundText(from, body) {
+// Get media URL from WhatsApp
+async function getWhatsAppMediaUrl(mediaId) {
+  if (!ACCESS_TOKEN || !PHONE_NUMBER_ID) {
+    throw new Error("Missing WhatsApp credentials");
+  }
+
   try {
-    if (mongoReady && Inquiry && dbConnected()) {
-      await Inquiry.create({
-        contact: from,
-        direction: "in",
-        from,
-        to: PHONE_NUMBER_ID,
-        type: "text",
-        text: body,
-      });
-    } else {
-      const logFile = path.join(DATA_DIR, "inquiries.log");
-      fs.appendFileSync(
-        logFile,
-        JSON.stringify({ ts: new Date().toISOString(), contact: from, direction: "in", from, to: PHONE_NUMBER_ID, type: "text", text: body }) +
-          "\n"
-      );
-    }
-  } catch (e) {
-    console.error("Failed to save inbound (dev):", e.message);
+    const response = await axios.get(
+      `https://graph.facebook.com/v21.0/${mediaId}`,
+      {
+        headers: { Authorization: `Bearer ${ACCESS_TOKEN}` }
+      }
+    );
+
+    return response.data.url;
+  } catch (error) {
+    console.error('Error getting media URL:', error.response?.data || error.message);
+    return null;
   }
 }
 
+// Download and base64 encode image for Gemini API
+async function downloadAndEncodeImage(imageUrl) {
+  try {
+    const response = await axios.get(imageUrl, {
+      headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
+      responseType: 'arraybuffer',
+      timeout: 15000
+    });
+
+    // Convert to base64
+    const base64 = Buffer.from(response.data, 'binary').toString('base64');
+    return base64;
+  } catch (error) {
+    console.error('Error downloading image:', error.message);
+    return null;
+  }
+}
+
+// --- Routes and webhook handling -------------------------------------------
 app.post("/webhook", async (req, res) => {
   if (!isValidSignature(req)) {
     console.warn("Invalid signature on webhook request");
@@ -1787,6 +2173,8 @@ app.post("/webhook", async (req, res) => {
         const payload =
           message.interactive?.button_reply?.id || message.interactive?.list_reply?.id;
         await handleTextCommand(from, payload || "");
+      } else if (type === "image") {
+        await handleImageMessage(from, message);
       } else {
         await sendTextMessage(from, "Thanks for your message! Send 'help' for options.");
       }
@@ -1854,7 +2242,7 @@ async function sendStatusNotification(customerWhatsApp, appointment, newStatus) 
           finalAmount ? `💰 Final Amount: *${finalAmount}*` : '',
           ``,
           `Thank you for choosing our service!`,
-          `Please rate your experience by replying 1-5 stars ⭐`,
+          `Please rate your experience by replying  1-5 stars ⭐`,
           ``,
           `We hope to serve you again soon! 😊`
         ].filter(Boolean).join('\n');
