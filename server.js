@@ -520,18 +520,32 @@ async function sendDocument(to, pdfPath, caption) {
   }
 }
 
-// Optional: send a quick reply menu as plain text list
+// Main Menu via WhatsApp Interactive List (scales beyond 3 options)
 async function sendMenu(to) {
-  await sendButtons(
-    to,
-    "📋 *Main Menu* - Choose what you need:\n\n💰 Get repair pricing instantly\n📅 Schedule your repair visit\n🛠️ Troubleshoot software issues\n🆘 Learn how to use this bot\n\n✨ Or just ask me anything naturally!",
-    [
-      { id: "estimate", title: "💰 Get Estimate" },
-      { id: "book", title: "📅 Book Appointment" },
-      { id: "troubleshoot", title: "🛠️ Troubleshoot" },
-      { id: "help", title: "🆘 Help" }
-    ]
-  );
+  const body = [
+    "📋 *Main Menu* - Choose what you need:",
+    "",
+    "💰 Get repair pricing instantly",
+    "📅 Schedule your repair visit",
+    "🛠️ Troubleshoot software issues",
+    "🆘 Learn how to use this bot",
+    "",
+    "✨ Or just ask me anything naturally!"
+  ].join('\n');
+
+  const sections = [
+    {
+      title: "Start",
+      rows: [
+        { id: "estimate", title: "💰 Get Estimate", description: "Instant pricing by brand/model/issue" },
+        { id: "book", title: "📅 Book Appointment", description: "Schedule a repair visit" },
+        { id: "troubleshoot", title: "🛠️ Troubleshoot", description: "Fix software issues step-by-step" },
+        { id: "help", title: "🆘 Help", description: "How to use this bot" }
+      ]
+    }
+  ];
+
+  await sendList(to, body, "Open Menu", sections);
 }
 
 app.get("/healthz", (_req, res) => {
