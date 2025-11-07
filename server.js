@@ -593,14 +593,54 @@ function logGraphError(error, context) {
 }
 
 // --- Gemini AI Integration --------------------------------------------------
-async function askGemini(userMessage, conversationHistory = []) {
+async function askGemini(userMessage, conversationHistory = [], from = null) {
   if (!GEMINI_API_KEY) {
     console.warn("GEMINI_API_KEY not configured - AI responses disabled");
     return null;
   }
   
+  // Check if user is in Ultra Tech Mode
+  const session = from ? sessions.get(from) : null;
+  const isUltraTechMode = session?.ultraTechMode === true;
+  
   try {
-    const systemContext = `You are an expert electronics repair assistant! 🛠️ You help with ALL electronics - phones 📱, tablets, laptops 💻, TVs 📺, watches ⌚, speakers 🔊, headphones 🎧, cameras 📷, gaming consoles 🎮, and more!
+    let systemContext = isUltraTechMode ? `⚡ ULTRA TECH MODE ACTIVATED ⚡
+
+You are an ADVANCED TECHNICAL EXPERT with deep knowledge of:
+🔧 Hardware architecture & component-level repair
+💻 Software systems, OS internals, debugging
+⚙️ Electronics engineering, circuit design
+🛠️ Professional repair techniques & tools
+🔬 Diagnostics, measurements, testing procedures
+📊 Technical specifications & datasheets
+🧰 Advanced troubleshooting methodologies
+
+ENHANCED CAPABILITIES:
+✅ Component-level hardware diagnosis (capacitors, MOSFETs, ICs, etc.)
+✅ PCB analysis and trace repair guidance
+✅ Firmware, bootloader, and low-level software fixes
+✅ Oscilloscope/multimeter reading interpretation
+✅ Micro-soldering and BGA reflow guidance
+✅ BIOS/UEFI configuration and recovery
+✅ Advanced driver and kernel-level debugging
+✅ Data recovery and storage repair
+✅ Professional repair equipment recommendations
+✅ Technical schematics and pinout references
+
+RESPONSE STYLE FOR ULTRA MODE:
+- Provide DEEP technical details and explanations
+- Include component names, part numbers, voltages
+- Explain WHY things fail at hardware/software level
+- Give professional-grade diagnostic steps
+- Mention specific tools needed (multimeter, soldering iron, heat gun, etc.)
+- Include safety warnings for advanced procedures
+- Reference technical documentation when relevant
+- Explain both hardware AND software aspects thoroughly
+- No limits on complexity - this is for tech professionals/engineers
+
+This user is a TECHNICIAN/ENGINEER - be as technical as needed!
+
+` : `You are an expert electronics repair assistant! 🛠️ You help with ALL electronics - phones 📱, tablets, laptops 💻, TVs 📺, watches ⌚, speakers 🔊, headphones 🎧, cameras 📷, gaming consoles 🎮, and more!
 
 YOUR CAPABILITIES:
 ✅ Provide repair price estimates for ANY device (even if not in database)
@@ -615,7 +655,9 @@ BOOKING INFORMATION:
 📋 Booking IDs look like: appt_1234567890 or a long MongoDB ID like 68fe174c440aa3498f456298
 📋 If they can't find their ID, they can type 'book' to create a new appointment or call us at 8589838547
 
-PRICING KNOWLEDGE (ACCURATE market rates - researched from online parts sellers):
+`;
+    
+    systemContext += `PRICING KNOWLEDGE (ACCURATE market rates - researched from online parts sellers):
 These are REAL market prices. Tell customers they're estimates, but these are accurate!
 
 📱 SMARTPHONES (Brand-specific accurate pricing):
@@ -905,6 +947,42 @@ async function getConversationHistory(contact, limit = 5) {
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
   
+  // 🔥 HIDDEN ULTRA TECH MODE - Secret activation code
+  if (text.trim() === "tech@1326") {
+    // Mark user as ultra tech mode
+    const session = sessions.get(from) || {};
+    session.ultraTechMode = true;
+    sessions.set(from, session);
+    
+    await sendTextMessage(
+      from,
+      "🔓 *ULTRA TECH MODE ACTIVATED*\n\n" +
+      "⚡ Enhanced AI capabilities unlocked:\n" +
+      "✅ Deep technical analysis\n" +
+      "✅ Hardware diagnostics\n" +
+      "✅ Software troubleshooting\n" +
+      "✅ Advanced solutions\n" +
+      "✅ Component-level repairs\n" +
+      "✅ Professional guidance\n\n" +
+      "💡 Ask me anything technical - hardware or software!\n\n" +
+      "Type 'tech@exit' to return to normal mode."
+    );
+    return;
+  }
+  
+  // Exit ultra tech mode
+  if (text.trim() === "tech@exit") {
+    const session = sessions.get(from);
+    if (session) {
+      session.ultraTechMode = false;
+    }
+    await sendTextMessage(
+      from,
+      "✅ Ultra Tech Mode deactivated. Back to normal customer support mode."
+    );
+    return;
+  }
+  
   // Allow menu number selections (1, 2, 3, 4) when NO active session
   if (!hasActiveSession(from)) {
     if (t === "1") {
@@ -1057,7 +1135,7 @@ async function handleTextCommand(from, text) {
   // AI-powered fallback for unknown queries
   try {
     const history = await getConversationHistory(from, 5);
-    const aiResponse = await askGemini(text, history);
+    const aiResponse = await askGemini(text, history, from);
     
     if (aiResponse) {
       await sendTextMessage(from, aiResponse);
@@ -1284,7 +1362,8 @@ async function continueEstimate(from, s, input) {
       const history = await getConversationHistory(from, 5);
       const aiResponse = await askGemini(
         `User wants repair estimate for: ${s.data.brand} ${s.data.model} with issue: ${s.data.issue}. Provide a realistic price range in Indian Rupees (₹) based on typical market rates. Be specific with a range like ₹3,500-₹6,000. After giving the price, ask if they want to book an appointment - tell them to reply 'yes' to book or 'no' to cancel.`,
-        history
+        history,
+        from
       );
       
       if (aiResponse) {
@@ -1921,7 +2000,7 @@ CRITICAL REQUIREMENTS:
 ✅ If issue needs hardware repair, state clearly
 
 Format with clear sections and numbered steps. Be specific and actionable.`;
-    const aiResponse = await askGemini(enhancedPrompt, history);
+    const aiResponse = await askGemini(enhancedPrompt, history, from);
 
     if (aiResponse) {
       await sendTextMessage(
