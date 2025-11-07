@@ -2127,7 +2127,7 @@ CRITICAL REQUIREMENTS:
 Be detailed, specific, and actionable. This is for real troubleshooting.`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{
           parts: [
@@ -2142,7 +2142,7 @@ Be detailed, specific, and actionable. This is for real troubleshooting.`;
         }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 800,
+          maxOutputTokens: 1024,
           topP: 0.9,
           topK: 50
         }
