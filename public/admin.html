@@ -1941,7 +1941,12 @@ function renderMessages(){
     feed.appendChild(div);
   });
   
-  feed.scrollTop = feed.scrollHeight;
+  // More reliable auto-scroll on mobile: wait for DOM paint
+  requestAnimationFrame(() => {
+    feed.scrollTop = feed.scrollHeight;
+    // In some mobile browsers a second frame is needed after images/fonts
+    requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
+  });
 }
 
 async function sendCurrent(){
