@@ -20,6 +20,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const ADMIN_ORIGIN = process.env.ADMIN_ORIGIN; // optional CORS origin for admin UI
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PORT = process.env.PORT || 10000;
+const ULTRA_TECH_TIMEOUT_MINUTES = parseInt(process.env.ULTRA_TECH_TIMEOUT_MINUTES || "60", 10);
 let memServer = null; // holds in-memory Mongo instance for dev
 const DEV_FAKE_SEND = (process.env.DEV_FAKE_SEND || "").toLowerCase() === "true"; // allow saving outgoing even if WA send fails
 
@@ -618,8 +619,15 @@ async function askGemini(userMessage, conversationHistory = [], from = null) {
   const isUltraTechMode = session?.ultraTechMode === true;
   
   try {
+    // Support one-shot RAW output mode with '/raw' prefix
+    let rawMode = false;
+    let cleanedMessage = userMessage || "";
+    if (/^\s*\/raw\s+/i.test(cleanedMessage)) {
+      rawMode = true;
+      cleanedMessage = cleanedMessage.replace(/^\s*\/raw\s+/i, "").trim();
+    }
     // Ultra Tech Mode: pure technical context, suppress consumer booking upsells
-    let systemContext = isUltraTechMode ? `⚡ ULTRA TECH MODE ACTIVATED ⚡
+  let systemContext = isUltraTechMode ? `⚡ ULTRA TECH MODE ACTIVATED ⚡
 
 ROLE: You are an ADVANCED REPAIR & SYSTEMS ENGINEER.
 Audience: Technician seeking deep diagnostic guidance.
@@ -648,6 +656,13 @@ OUTPUT FORMAT SECTIONS:
 • DIAGNOSTIC STEPS (numbered, with expected readings)
 • REPAIR OPTIONS
 • PREVENTION / NOTES
+
+${rawMode ? `
+RAW MODE:
+• Respond with compact, plain text (no emojis)
+• Prefer bullet points with minimal prose
+• No marketing, no booking prompts
+` : ''}
 
 Answer ONLY in technical style, no booking or pricing suggestions unless explicitly asked.
 ` : `You are an expert electronics repair assistant! 🛠️ Friendly, helpful, and customer-facing.
@@ -856,8 +871,8 @@ IMPORTANT:
     ).join('\n');
     
     const prompt = contextMessages 
-      ? `${systemContext}\n\nConversation history:\n${contextMessages}\n\nCustomer: ${userMessage}\n\nAssistant:`
-      : `${systemContext}\n\nCustomer: ${userMessage}\n\nAssistant:`;
+      ? `${systemContext}\n\nConversation history:\n${contextMessages}\n\nCustomer: ${cleanedMessage}\n\nAssistant:`
+      : `${systemContext}\n\nCustomer: ${cleanedMessage}\n\nAssistant:`;
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -865,7 +880,12 @@ IMPORTANT:
         contents: [{
           parts: [{ text: prompt }]
         }],
-        generationConfig: {
+        generationConfig: rawMode ? {
+          temperature: 0.2,
+          maxOutputTokens: 250,
+          topP: 0.9,
+          topK: 40
+        } : {
           temperature: 0.8,
           maxOutputTokens: 400,
           topP: 0.9,
@@ -955,6 +975,14 @@ async function getConversationHistory(contact, limit = 5) {
 
 async function handleTextCommand(from, text) {
   const t = (text || "").trim().toLowerCase();
+  // Expire Ultra Tech Mode if idle too long
+  const expired = maybeExpireUltraTech(from);
+  if (expired) {
+    await sendTextMessage(from, `Ultra Tech Mode expired after ${ULTRA_TECH_TIMEOUT_MINUTES} min inactivity. Type 'tech@1326' to reactivate.`);
+  }
+  // Update last active timestamp
+  const sess0 = sessions.get(from);
+  if (sess0) { sess0.lastActive = Date.now(); sessions.set(from, sess0); }
 
   // Quick exit from any current flow without affecting flags (e.g., ultraTechMode)
   if (/^exit\b/i.test((text || "").trim())) {
@@ -995,6 +1023,49 @@ async function handleTextCommand(from, text) {
       from,
       "✅ Ultra Tech Mode deactivated. Back to normal customer support mode."
     );
+    return;
+  }
+
+  // Tech help command
+  if (t === "tech@help") {
+    const session = sessions.get(from) || {};
+    const active = session.ultraTechMode === true;
+    await sendTextMessage(
+      from,
+      [
+        "⚙️ *Ultra Tech Mode Help*",
+        active ? "Status: ACTIVE" : "Status: INACTIVE (type tech@1326 to activate)",
+        "",
+        "Capabilities:",
+        "• Component-level hardware diagnostics",
+        "• Voltage rail & power sequencing analysis",
+        "• Firmware / bootloader / kernel fault triage",
+        "• BGA / reflow / micro-solder guidance",
+        "• Oscilloscope & multimeter measurement targets",
+        "• Data recovery strategies (flash / SSD / eMMC)",
+        "• Thermal + performance degradation analysis",
+        "• Advanced troubleshooting flow suggestions",
+        "",
+        "Commands:",
+        "tech@1326 → activate Ultra Tech",
+        "tech@exit → deactivate",
+        "/raw <query> → minimal raw output",
+  "cost <minutes> parts=<₹> complexity=<low|medium|high|extreme> [emergency] [rate=<₹/hr>]",
+        "tech@help → this list",
+        "exit → leave current conversational flow (keeps mode)",
+        "",
+        `Auto-expiry: ${ULTRA_TECH_TIMEOUT_MINUTES} minutes of inactivity`,
+        "",
+        "Send a technical symptom, measurement, or log excerpt to begin."
+      ].join('\n')
+    );
+    return;
+  }
+
+  // Quick technical cost calculator
+  if (t.startsWith("cost ") || t === "cost") {
+    const result = computeCostFromText(text);
+    await sendTextMessage(from, result.message);
     return;
   }
   
@@ -1209,8 +1280,81 @@ function clearSessionFlow(id) {
   });
 }
 
+// Auto-expire Ultra Tech Mode after inactivity
+function maybeExpireUltraTech(id) {
+  const s = sessions.get(id);
+  if (!s || !s.ultraTechMode) return false;
+  const last = s.lastActive || 0;
+  const mins = (Date.now() - last) / 60000;
+  if (mins >= ULTRA_TECH_TIMEOUT_MINUTES) {
+    s.ultraTechMode = false;
+    s.lastActive = Date.now();
+    sessions.set(id, s);
+    return true;
+  }
+  return false;
+}
+
 function capitalize(s) {
   return (s || "").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Cost estimation utility for technicians
+function computeCostFromText(raw) {
+  try {
+    const txt = raw.toLowerCase();
+    const minutesMatch = txt.match(/(\d+)(?:\s*min|\s*minutes|\b)/);
+    const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : 0;
+    const rateMatch = txt.match(/rate\s*=\s*(\d+)/);
+    let hourlyRate = rateMatch ? parseInt(rateMatch[1], 10) : 850; // base technician rate ₹/hr
+    const partsMatch = txt.match(/parts\s*=\s*(₹?\d+)/);
+    const parts = partsMatch ? parseInt(partsMatch[1].replace(/₹/, ''), 10) : 0;
+    const complexityMatch = txt.match(/complexity\s*=\s*(low|medium|high|extreme)/);
+    const complexity = complexityMatch ? complexityMatch[1] : 'medium';
+    const emergency = /emergency|urgent|priority/.test(txt);
+
+    // Complexity multiplier
+    const complexityMap = { low: 1.0, medium: 1.25, high: 1.6, extreme: 2.1 };
+    const multiplier = complexityMap[complexity] || 1.25;
+
+    // Time cost
+    const hours = minutes / 60;
+    const laborRaw = hours * hourlyRate * multiplier;
+    // Minimum diagnostic fee threshold
+    const minDiagnostic = 300;
+    let labor = Math.max(laborRaw, minutes > 0 ? minDiagnostic : 0);
+
+    if (emergency) {
+      labor *= 1.4; // surcharge for emergency priority
+    }
+
+    // Round to nearest 50 for cleaner quoting
+    labor = Math.round(labor / 50) * 50;
+    const total = labor + parts;
+
+    const details = [
+      `Minutes: ${minutes}`,
+      `Rate: ₹${hourlyRate}/hr`,
+      `Complexity: ${complexity} (x${multiplier})`,
+      parts ? `Parts: ₹${parts.toLocaleString('en-IN')}` : 'Parts: ₹0',
+      emergency ? 'Emergency surcharge: applied' : 'Emergency surcharge: none',
+      `Labor: ₹${labor.toLocaleString('en-IN')}`,
+      `Total: ₹${total.toLocaleString('en-IN')}`
+    ].join('\n');
+
+    return {
+      minutes,
+      hourlyRate,
+      complexity,
+      parts,
+      emergency,
+      labor,
+      total,
+      message: `🔧 Technical Quote Breakdown\n${details}\n\n(Use '/raw cost ...' for minimal output)`
+    };
+  } catch (e) {
+    return { message: 'Failed to parse cost input. Format: cost <minutes> parts=<₹> complexity=<low|medium|high|extreme> [emergency] [rate=<₹/hr>]' };
+  }
 }
 
 function listBrands() {
@@ -1356,6 +1500,8 @@ async function continueSession(from, text) {
 }
 
 async function continueEstimate(from, s, input) {
+  // Suppress booking prompts if user toggled into Ultra Tech mid-estimate
+  const tech = sessions.get(from)?.ultraTechMode === true;
   switch (s.step) {
     case "brand": {
       const brands = listBrands();
@@ -1488,16 +1634,29 @@ async function continueEstimate(from, s, input) {
       }
       s.data.issue = issue;
       s.data.price = price;
-      await sendTextMessage(
-        from,
-        [
-          `Estimate for ${s.data.brand} ${s.data.model} (${issue})`,
-          `Parts & labor: ₹${price.toLocaleString("en-IN")}`,
-          "This is an estimate; final price may vary after diagnosis.",
-          "Would you like to book an appointment? (yes/no)",
-        ].join("\n")
-      );
-      s.step = "offer_book";
+      if (tech) {
+        await sendTextMessage(
+          from,
+          [
+            `Tech Mode Estimate → ${s.data.brand} ${s.data.model} (${issue})`,
+            `Approx cost: ₹${price.toLocaleString("en-IN")} (internal reference)`,
+            "(Booking prompts suppressed in Ultra Tech Mode)",
+            "Type 'tech@exit' to return to customer mode or continue exploring parts."
+          ].join("\n")
+        );
+        endSession(from); // End flow gracefully in tech mode
+      } else {
+        await sendTextMessage(
+          from,
+          [
+            `Estimate for ${s.data.brand} ${s.data.model} (${issue})`,
+            `Parts & labor: ₹${price.toLocaleString("en-IN")}`,
+            "This is an estimate; final price may vary after diagnosis.",
+            "Would you like to book an appointment? (yes/no)",
+          ].join("\n")
+        );
+        s.step = "offer_book";
+      }
       return;
     }
     case "offer_book": {
@@ -1969,13 +2128,20 @@ async function continueTroubleshoot(from, s, input) {
         await sendTextMessage(from, "Great! Try the steps above and let me know if you need more help. If the issue persists, you can always book a repair appointment.");
         endSession(from);
       } else if (input.toLowerCase().includes("no") || input.toLowerCase().includes("book")) {
-        await sendTextMessage(from, "No problem! Let's get you scheduled for professional repair.");
-        // Switch to booking flow
-        s.flow = "booking";
-        s.step = "name";
-        await sendTextMessage(from, "What's your name for the appointment?");
+        const tech = sessions.get(from)?.ultraTechMode === true;
+        if (tech) {
+          await sendTextMessage(from, "Understood. In Ultra Tech Mode I won't push booking. Provide new symptoms, measurements, or type 'tech@exit' to switch back.");
+          endSession(from);
+        } else {
+          await sendTextMessage(from, "No problem! Let's get you scheduled for professional repair.");
+          // Switch to booking flow
+          s.flow = "booking";
+          s.step = "name";
+          await sendTextMessage(from, "What's your name for the appointment?");
+        }
       } else {
-        await sendTextMessage(from, "Type 'yes' to try the steps, or 'book' to schedule a repair appointment.");
+        const tech = sessions.get(from)?.ultraTechMode === true;
+        await sendTextMessage(from, tech ? "Type 'yes' to try the steps, or share additional diagnostics (logs/measurements)." : "Type 'yes' to try the steps, or 'book' to schedule a repair appointment.");
       }
       return;
     }
@@ -1989,6 +2155,7 @@ async function continueTroubleshoot(from, s, input) {
 // Analyze software issues using AI and knowledge base
 async function analyzeIssue(from, session) {
   const { issue, deviceType, errorDetails } = session.data;
+  const tech = sessions.get(from)?.ultraTechMode === true;
 
   await sendTextMessage(from, "🔍 *Analyzing your issue...*\n\n⏳ Checking knowledge base and generating custom solution...");
 
@@ -1999,7 +2166,7 @@ async function analyzeIssue(from, session) {
     if (knowledgeBaseSolution) {
       await sendTextMessage(
         from,
-        `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)\n\n📅 Or type 'book' to schedule professional repair.`
+        tech ? `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)` : `🛠️ *SOLUTION FOUND!*\n\n${knowledgeBaseSolution}\n\n✅ Did this solve your problem? (yes/no)\n\n📅 Or type 'book' to schedule professional repair.`
       );
       session.step = "analyze";
       return;
@@ -2055,14 +2222,14 @@ Format with clear sections and numbered steps. Be specific and actionable.`;
     if (aiResponse) {
       await sendTextMessage(
         from,
-        `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)\n\n📅 If the problem persists, type 'book' to schedule professional repair.`
+        tech ? `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)` : `🛠️ *CUSTOM TROUBLESHOOTING GUIDE*\n\n${aiResponse}\n\n✅ Did this help resolve your issue? (yes/no)\n\n📅 If the problem persists, type 'book' to schedule professional repair.`
       );
       session.step = "analyze";
     } else {
       // Fallback response
       await sendTextMessage(
         from,
-        `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. **Restart the device** - Hold power button for 10-15 seconds\n2. **Check for updates** - Ensure OS and apps are current\n3. **Clear cache/storage** - Free up space and remove temp files\n4. **Safe mode test** - Boot without third-party apps\n5. **Factory reset** (last resort) - Backup data first!\n\n⚠️ *Important:* Backup your data before major changes.\n\nDid this help? (yes/no) or type 'book' for professional repair.`
+        tech ? `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. Restart device\n2. Check updates\n3. Clear cache/storage\n4. Safe mode test\n5. Factory reset (last resort)\n\nReply yes/no or provide more diagnostics.` : `🛠️ *GENERAL TROUBLESHOOTING STEPS*\n\nFor ${deviceType} issue: ${issue}\n\n1. **Restart the device** - Hold power button for 10-15 seconds\n2. **Check for updates** - Ensure OS and apps are current\n3. **Clear cache/storage** - Free up space and remove temp files\n4. **Safe mode test** - Boot without third-party apps\n5. **Factory reset** (last resort) - Backup data first!\n\n⚠️ *Important:* Backup your data before major changes.\n\nDid this help? (yes/no) or type 'book' for professional repair.`
       );
       session.step = "analyze";
     }
