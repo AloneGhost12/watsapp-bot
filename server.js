@@ -750,6 +750,58 @@ BOOKING FLOW CRITICAL RULES:
   }
 }
 
+// Save incoming message to database
+async function saveInquiry(message) {
+  try {
+    if (!mongoReady || !Inquiry || !dbConnected()) {
+      console.log('[saveInquiry] Skipping - MongoDB not ready');
+      return;
+    }
+
+    const inquiry = new Inquiry({
+      contact: message.from,
+      direction: 'in',
+      from: message.from,
+      to: PHONE_NUMBER_ID,
+      type: message.type,
+      text: message.text?.body || message.image?.caption || message.interactive?.button_reply?.title || '',
+      status: 'received',
+      raw: message
+    });
+
+    await inquiry.save();
+    console.log(`[saveInquiry] Saved message from ${message.from}`);
+  } catch (error) {
+    console.error('[saveInquiry] Error saving inquiry:', error.message);
+  }
+}
+
+// Save outgoing message to database
+async function saveOutgoing(to, body) {
+  try {
+    if (!mongoReady || !Inquiry || !dbConnected()) {
+      console.log('[saveOutgoing] Skipping - MongoDB not ready');
+      return;
+    }
+
+    const inquiry = new Inquiry({
+      contact: to,
+      direction: 'out',
+      from: PHONE_NUMBER_ID,
+      to: to,
+      type: 'text',
+      text: body,
+      status: 'sent',
+      raw: { text: body }
+    });
+
+    await inquiry.save();
+    console.log(`[saveOutgoing] Saved outgoing message to ${to}`);
+  } catch (error) {
+    console.error('[saveOutgoing] Error saving outgoing message:', error.message);
+  }
+}
+
 async function getConversationHistory(contact, limit = 5) {
   try {
     if (mongoReady && Inquiry && dbConnected()) {
