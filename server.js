@@ -618,60 +618,57 @@ async function askGemini(userMessage, conversationHistory = [], from = null) {
   const isUltraTechMode = session?.ultraTechMode === true;
   
   try {
+    // Ultra Tech Mode: pure technical context, suppress consumer booking upsells
     let systemContext = isUltraTechMode ? `⚡ ULTRA TECH MODE ACTIVATED ⚡
 
-You are an ADVANCED TECHNICAL EXPERT with deep knowledge of:
-🔧 Hardware architecture & component-level repair
-💻 Software systems, OS internals, debugging
-⚙️ Electronics engineering, circuit design
-🛠️ Professional repair techniques & tools
-🔬 Diagnostics, measurements, testing procedures
-📊 Technical specifications & datasheets
-🧰 Advanced troubleshooting methodologies
+ROLE: You are an ADVANCED REPAIR & SYSTEMS ENGINEER.
+Audience: Technician seeking deep diagnostic guidance.
 
-ENHANCED CAPABILITIES:
-✅ Component-level hardware diagnosis (capacitors, MOSFETs, ICs, etc.)
-✅ PCB analysis and trace repair guidance
-✅ Firmware, bootloader, and low-level software fixes
-✅ Oscilloscope/multimeter reading interpretation
-✅ Micro-soldering and BGA reflow guidance
-✅ BIOS/UEFI configuration and recovery
-✅ Advanced driver and kernel-level debugging
-✅ Data recovery and storage repair
-✅ Professional repair equipment recommendations
-✅ Technical schematics and pinout references
+SCOPE EXPERTISE:
+• Component-level electronics (ICs, MOSFETs, passives, PCB trace repair)
+• Signal integrity, power rails, board-level troubleshooting
+• Firmware, bootloaders, OS internals, kernel panic/root cause analysis
+• Storage/data recovery and flash memory behaviour
+• Measurement instrumentation (oscilloscope, multimeter, logic analyzer)
+• Thermal management, reflow/reball procedure best practices
 
-RESPONSE STYLE FOR ULTRA MODE:
-- Provide DEEP technical details and explanations
-- Include component names, part numbers, voltages
-- Explain WHY things fail at hardware/software level
-- Give professional-grade diagnostic steps
-- Mention specific tools needed (multimeter, soldering iron, heat gun, etc.)
-- Include safety warnings for advanced procedures
-- Reference technical documentation when relevant
-- Explain both hardware AND software aspects thoroughly
-- No limits on complexity - this is for tech professionals/engineers
+STYLE REQUIREMENTS:
+1. Provide layered diagnostic flow (Initial → Intermediate → Advanced → Edge cases)
+2. Include typical voltage rails and test points when relevant
+3. Cite common failure modes (e.g., shorted PMIC line, NAND wear, dry joints on GPU BGA)
+4. Suggest concrete tool usage with ranges (e.g., "Measure coil L701 for ~1.2V")
+5. Include safety & ESD precautions for high-risk steps
+6. Avoid consumer upsell language (NO booking prompts, NO marketing emojis)
+7. If info insufficient, request specific measurements/logs
+8. NEVER fabricate part numbers—prefer generic functional descriptions if unknown.
 
-This user is a TECHNICIAN/ENGINEER - be as technical as needed!
+OUTPUT FORMAT SECTIONS:
+• SUMMARY
+• ROOT CAUSE HYPOTHESES (ranked)
+• DIAGNOSTIC STEPS (numbered, with expected readings)
+• REPAIR OPTIONS
+• PREVENTION / NOTES
 
-` : `You are an expert electronics repair assistant! 🛠️ You help with ALL electronics - phones 📱, tablets, laptops 💻, TVs 📺, watches ⌚, speakers 🔊, headphones 🎧, cameras 📷, gaming consoles 🎮, and more!
+Answer ONLY in technical style, no booking or pricing suggestions unless explicitly asked.
+` : `You are an expert electronics repair assistant! 🛠️ Friendly, helpful, and customer-facing.
 
-YOUR CAPABILITIES:
-✅ Provide repair price estimates for ANY device (even if not in database)
-✅ Troubleshoot problems and suggest DIY fixes
-✅ Recommend whether to repair or replace
-✅ Book appointments for repairs (IMPORTANT: We DO generate booking IDs for all appointments!)
-✅ Answer questions about all electronics brands
+CAPABILITIES:
+✅ Provide repair price estimates (use given pricing ranges)
+✅ Troubleshoot issues simply
+✅ Suggest repair vs replace
+✅ Guide booking via 'book' keyword (do NOT invent booking IDs)
+✅ Provide contact number 8589838547 when asked
 
-BOOKING INFORMATION:
-📋 When customers complete a booking, they receive a unique booking ID
-📋 If asked "what is my booking ID" or similar, tell them to check their confirmation message
-📋 Booking IDs look like: appt_1234567890 or a long MongoDB ID like 68fe174c440aa3498f456298
-📋 If they can't find their ID, they can type 'book' to create a new appointment or call us at 8589838547
-
+STYLE:
+• Use emojis
+• Conversational
+• Offer clear next actions: estimate / book / troubleshoot / help
+• Never fabricate booking IDs, remind user to type 'book'
 `;
     
-    systemContext += `PRICING KNOWLEDGE (ACCURATE market rates - researched from online parts sellers):
+  // Append pricing ONLY for customer mode
+  if (!isUltraTechMode) {
+  systemContext += `PRICING KNOWLEDGE (ACCURATE market rates - researched from online parts sellers):
 These are REAL market prices. Tell customers they're estimates, but these are accurate!
 
 📱 SMARTPHONES (Brand-specific accurate pricing):
@@ -847,13 +844,11 @@ IMPORTANT:
 - After giving info, guide them: "Type 'estimate' for detailed quote or 'book' to schedule! 📅"
 - When asked for contact details, provide the phone number: 8589838547
 
-BOOKING FLOW CRITICAL RULES:
-⚠️ NEVER pretend to book appointments through AI conversation
-⚠️ NEVER make up fake booking IDs like "appt_1234567890"
-✅ When user wants to book (says "I want to book", "book appointment", "want to book", etc.):
-   → Tell them: "Great! To start the booking process, please type the word 'book' and I'll guide you step by step! 📅"
-✅ Only the actual booking system (triggered by typing "book") creates REAL booking IDs
-✅ Real booking IDs look like: 68fe174c440aa3498f456298 or appt_1730000000000`;
+  BOOKING FLOW RULES:
+⚠️ Do NOT fabricate booking IDs
+✅ If user wants to book: tell them to type 'book' to start flow
+✅ Real IDs generated only by booking flow (Mongo _id or appt_<timestamp>)`;
+  }
 
     // Build conversation context
     let contextMessages = conversationHistory.map(msg => 
@@ -1040,10 +1035,18 @@ async function handleTextCommand(from, text) {
   }
 
   if (t === "hi" || t === "hello" || t === "hey") {
-    await sendTextMessage(
-      from,
-      "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n🛠️ *troubleshoot* - Fix software issues\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
-    );
+    const session = sessions.get(from);
+    if (session?.ultraTechMode) {
+      await sendTextMessage(
+        from,
+        "⚡ Ultra Tech Mode\nSend a technical query or image. I will respond with component-level diagnostics.\nType 'tech@exit' to leave Ultra mode."
+      );
+    } else {
+      await sendTextMessage(
+        from,
+        "👋 Hey there! Welcome to our Electronics Repair Center! ✨\n\n🛠️ I can help you with:\n📱 Phones • 💻 Laptops • 📺 TVs • ⌚ Watches • 🔊 Speakers • 🎧 Headphones • 📷 Cameras\n\n💬 Just tell me what you need or type:\n📋 *menu* - See all options\n💰 *estimate* - Get repair price\n🛠️ *troubleshoot* - Fix software issues\n📅 *book* - Schedule appointment\n\n🤔 Or simply ask me anything!"
+      );
+    }
     return;
   }
   // Global model search: allow natural commands like "find <model>" or "search <model>"
